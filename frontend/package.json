@@ -1,0 +1,12 @@
+{
+    "name": "music-metadata-manager-web",
+    "private": true,
+    "type": "module",
+    "devDependencies": {
+        "@types/node": "26.6.5",
+        "@typescript/native": "npm:typescript@7.0.2",
+        "esbuild": "0.28.2",
+        "typescript": "npm:@typescript/typescript6@6.0.2"
+    },
+    "dependencies": {}
+}
