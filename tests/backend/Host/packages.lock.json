@@ -132,8 +132,8 @@
       "Jellyfin.Plugin.MusicMetadataManager": {
         "type": "Project",
         "dependencies": {
-          "MusicMetadataManager.Core": "[0.6.1, )",
-          "MusicMetadataManager.Infrastructure": "[0.6.1, )"
+          "MusicMetadataManager.Core": "[0.1.0, )",
+          "MusicMetadataManager.Infrastructure": "[0.1.0, )"
         }
       },
       "musicmetadatamanager.core": {
@@ -142,7 +142,7 @@
       "musicmetadatamanager.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "MusicMetadataManager.Core": "[0.6.1, )"
+          "MusicMetadataManager.Core": "[0.1.0, )"
         }
       }
     }

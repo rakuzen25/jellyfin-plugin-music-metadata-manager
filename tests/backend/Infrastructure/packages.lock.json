@@ -135,7 +135,7 @@
       "musicmetadatamanager.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "MusicMetadataManager.Core": "[0.6.1, )"
+          "MusicMetadataManager.Core": "[0.1.0, )"
         }
       }
     }
