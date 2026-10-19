@@ -1,76 +1,88 @@
 import { operationError } from "./errors.ts";
-import type { Features } from "./features.ts";
-export function createBootstrap(features: Features) {
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface BootstrapDependencies {
+    rules: Pick<ControllerContracts["rules"], "edit" | "invalidateReview" | "load">;
+    actions: Pick<ControllerContracts["actions"], "actions">;
+    api: Pick<ControllerContracts["api"], "api" | "esc" | "page" | "perform" | "q">;
+    navigation: Pick<ControllerContracts["navigation"], "captureEditor" | "markDirty" | "normalizeControls" | "showDestination" | "workspaceBack">;
+    nativeLinks: Pick<ControllerContracts["nativeLinks"], "updateWorkspaceNativeLinks">;
+    notifications: Pick<ControllerContracts["notifications"], "notifications">;
+    identities: Pick<ControllerContracts["identities"], "editIdentity">;
+    managerUi: Pick<ControllerContracts["managerUi"], "managerInventory" | "selectItemTab">;
+}
+export function createBootstrap(ports: BootstrapDependencies, session: DashboardState) {
     // Navigation wiring and lifecycle. No audit or provider lookup runs on landing.
-    const oldInvalidate = features.rules.invalidateReview;
+    const oldInvalidate = ports.rules.invalidateReview;
     return {
         initialize() {
-            features.rules.invalidateReview = function () {
+            ports.rules.invalidateReview = function () {
                 oldInvalidate();
-                if (features.navigation.ui.screen === "review") features.actions.actions.setDisabled(features.api.q("mmoActivate"), true);
+                if (session.navigation.ui.screen === "review") ports.actions.actions.setDisabled(ports.api.q("mmoActivate"), true);
             };
-            features.api.q("mmoNavigation").onclick = (e) => {
+            ports.api.q("mmoNavigation").onclick = (e) => {
                 const view = (e.target as HTMLElement).closest<HTMLElement>("[data-view]")?.dataset.view;
-                if (view) features.api.perform(() => features.navigation.showDestination(view));
+                if (view) ports.api.perform(() => ports.navigation.showDestination(view));
             };
-            features.api.q("mmoWorkspaceBack").onclick = () => features.api.perform(features.navigation.workspaceBack);
-            features.api.q("mmoItemThumbnail").onerror = () => {
-                features.api.q("mmoItemThumbnail").hidden = true;
+            ports.api.q("mmoWorkspaceBack").onclick = () => ports.api.perform(ports.navigation.workspaceBack);
+            ports.api.q("mmoItemThumbnail").onerror = () => {
+                ports.api.q("mmoItemThumbnail").hidden = true;
             };
             for (const id of ["mmoForm", "mmoIdentityForm"]) {
-                features.api.q(id).addEventListener("input", () => features.navigation.markDirty());
-                features.api.q(id).addEventListener("change", () => features.navigation.markDirty());
+                ports.api.q(id).addEventListener("input", () => ports.navigation.markDirty());
+                ports.api.q(id).addEventListener("change", () => ports.navigation.markDirty());
             }
             // Existing suggestion handlers mutate the form without firing input.
-            features.api.q("mmoIdentitySuggestions").addEventListener("click", (e) => {
-                if ((e.target as HTMLElement).closest<HTMLElement>("#mmoAcceptSuggestions")) features.navigation.markDirty();
+            ports.api.q("mmoIdentitySuggestions").addEventListener("click", (e) => {
+                if ((e.target as HTMLElement).closest<HTMLElement>("#mmoAcceptSuggestions")) ports.navigation.markDirty();
             });
-            features.api.q("mmoChoose").addEventListener("click", () => {
-                features.navigation.markDirty();
-                features.nativeLinks.updateWorkspaceNativeLinks();
+            ports.api.q("mmoChoose").addEventListener("click", () => {
+                ports.navigation.markDirty();
+                ports.nativeLinks.updateWorkspaceNativeLinks();
             });
-            features.api.q("mmoReload").onclick = () =>
-                features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
-                    await features.rules.load();
+            ports.api.q("mmoReload").onclick = () =>
+                ports.api.perform(async (operation) => {
+                    const message = ports.notifications.notifications.scope(operation);
+                    await ports.rules.load();
                     message("Status refreshed.");
                 });
-            features.api.q("mmoNew").onclick = () => features.api.perform(() => features.rules.edit(null));
-            features.api.q("mmoNewIdentity").onclick = () => features.api.perform(() => features.identities.editIdentity(null));
+            ports.api.q("mmoNew").onclick = () => ports.api.perform(() => ports.rules.edit(null));
+            ports.api.q("mmoNewIdentity").onclick = () => ports.api.perform(() => ports.identities.editIdentity(null));
             window.addEventListener("beforeunload", (e) => {
-                if (!features.api.page.isConnected) return;
-                features.navigation.captureEditor();
-                if (features.navigation.ui.locals.size || features.managerUi.managerBatch.length || features.issues.repairQueue?.staged.size) {
+                if (!ports.api.page.isConnected) return;
+                ports.navigation.captureEditor();
+                if (session.navigation.ui.locals.size || session.managerUi.managerBatch.length || session.issues.repairQueue?.staged.size) {
                     e.preventDefault();
                     e.returnValue = "";
                 }
             });
-            features.api.page.addEventListener("pageshow", () =>
-                features.api.perform(async (operation) => {
-                    features.notifications.notifications.scope(operation);
-                    if (features.api.page.dataset.mmoInitialized) return;
-                    features.api.page.dataset.mmoInitialized = "true";
+            ports.api.page.addEventListener("pageshow", () =>
+                ports.api.perform(async (operation) => {
+                    ports.notifications.notifications.scope(operation);
+                    if (ports.api.page.dataset.mmoInitialized) return;
+                    ports.api.page.dataset.mmoInitialized = "true";
                     try {
-                        features.navigation.normalizeControls();
-                        const libs = await features.api.api("libraries");
-                        features.api.q("mmoLibraries").innerHTML = libs
-                            .map((x) => '<option value="' + features.api.esc(x.id) + '">' + features.api.esc(x.name) + "</option>")
+                        ports.navigation.normalizeControls();
+                        const libs = await ports.api.api("libraries");
+                        session.api.fieldDefinitions = await ports.api.api("manager/fields");
+                        ports.api.q("mmoLibraries").innerHTML = libs
+                            .map((x) => '<option value="' + ports.api.esc(x.id) + '">' + ports.api.esc(x.name) + "</option>")
                             .join("");
-                        features.api.q("mmoIdentityLibraries").innerHTML = features.api.q("mmoLibraries").innerHTML;
-                        features.api.q("mmoInventoryLibrary").innerHTML =
-                            '<option value="">All music libraries</option>' + features.api.q("mmoLibraries").innerHTML;
-                        await features.rules.load();
-                        await features.managerUi.managerInventory();
-                        await features.navigation.showDestination("library", false);
+                        ports.api.q("mmoIdentityLibraries").innerHTML = ports.api.q("mmoLibraries").innerHTML;
+                        ports.api.q("mmoInventoryLibrary").innerHTML =
+                            '<option value="">All music libraries</option>' + ports.api.q("mmoLibraries").innerHTML;
+                        await ports.rules.load();
+                        await ports.managerUi.managerInventory();
+                        await ports.navigation.showDestination("library", false);
                     } catch (caughtError) {
                         const e = operationError(caughtError);
-                        delete features.api.page.dataset.mmoInitialized;
+                        delete ports.api.page.dataset.mmoInitialized;
                         throw e;
                     }
                 }),
             );
-            features.api.q("mmoWorkspaceTabs").addEventListener("keydown", (e) => {
-                const tabs = [...features.api.q("mmoWorkspaceTabs").querySelectorAll<HTMLElement>("[data-item-tab]")];
+            ports.api.q("mmoWorkspaceTabs").addEventListener("keydown", (e) => {
+                const tabs = [...ports.api.q("mmoWorkspaceTabs").querySelectorAll<HTMLElement>("[data-item-tab]")];
                 const current = tabs.indexOf(document.activeElement as HTMLElement);
                 let next;
                 if (e.key === "ArrowRight") next = (current + 1) % tabs.length;
@@ -80,7 +92,7 @@ export function createBootstrap(features: Features) {
                 else return;
                 e.preventDefault();
                 tabs[next]!.focus();
-                features.api.perform(() => features.managerUi.selectItemTab(tabs[next]!.dataset.itemTab!));
+                ports.api.perform(() => ports.managerUi.selectItemTab(tabs[next]!.dataset.itemTab!));
             });
         },
         get oldInvalidate() {

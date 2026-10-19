@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 using Xunit;
+
 namespace MusicMetadataManager.Tests;
 public sealed class PublicContractTests
 {
@@ -16,6 +17,7 @@ public sealed class PublicContractTests
         Assert.Equal("musicmetadatamanager", Assert.Single(plugin.GetPages()).Name);
         Assert.Equal("Jellyfin.Plugin.MusicMetadataManager", typeof(Plugin).Assembly.GetName().Name);
     }
+
     [Theory]
     [InlineData(typeof(Api), "MusicMetadataManager")]
     [InlineData(typeof(ManagerApi), "MusicMetadataManager/manager")]

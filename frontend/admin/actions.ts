@@ -1,6 +1,13 @@
 import type { Command } from "./state.ts";
-import type { Features } from "./features.ts";
-export function createActions(features: Features) {
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface ActionsDependencies {
+    api: Pick<ControllerContracts["api"], "page" | "q">;
+    managerUi: Pick<ControllerContracts["managerUi"], "setEditorWritable">;
+    bulk: Pick<ControllerContracts["bulk"], "renderBulkSelection">;
+    issues: Pick<ControllerContracts["issues"], "renderIssues">;
+}
+export function createActions(ports: ActionsDependencies, session: DashboardState) {
     // Commands own their pending state independently of DOM nodes and notices.
     const actions = (() => {
         const pending = new Map<string, Command>(),
@@ -22,14 +29,14 @@ export function createActions(features: Features) {
                 ? "repairQueue"
                 : row?.dataset.changeKey ||
                   row?.dataset.issueKey ||
-                  (features.navigation.ui.screen === "issue" ? features.issueGuidance.issuePanelState?.issue.key : null) ||
+                  (session.navigation.ui.screen === "issue" ? session.issueGuidance.issuePanelState?.issue.key : null) ||
                   button?.dataset.id ||
                   button?.dataset.managerItem ||
-                  (features.navigation.ui.screen === "workspace"
-                      ? features.navigation.ui.editor?.key
-                      : features.navigation.ui.screen === "review"
+                  (session.navigation.ui.screen === "workspace"
+                      ? session.navigation.ui.editor?.key
+                      : session.navigation.ui.screen === "review"
                         ? "review"
-                        : features.navigation.ui.view);
+                        : session.navigation.ui.view);
             const command =
                 button?.id ||
                 JSON.stringify(Object.fromEntries(Object.entries(button?.dataset || {}).filter(([k]) => k !== "actionLabel"))) ||
@@ -64,24 +71,24 @@ export function createActions(features: Features) {
                 navigation,
                 item:
                     row?.querySelector<HTMLElement>("strong")?.textContent ||
-                    features.navigation.ui.editor?.name ||
-                    (features.navigation.ui.screen === "issue" ? features.issueGuidance.issuePanelState?.issue.name : "") ||
+                    session.navigation.ui.editor?.name ||
+                    (session.navigation.ui.screen === "issue" ? session.issueGuidance.issuePanelState?.issue.name : "") ||
                     "",
                 context: {
-                    screen: features.navigation.ui.screen,
-                    view: features.navigation.ui.view,
-                    item: features.navigation.ui.editor?.key || null,
+                    screen: session.navigation.ui.screen,
+                    view: session.navigation.ui.view,
+                    item: session.navigation.ui.editor?.key || null,
                 },
                 anchor:
                     row?.querySelector<HTMLElement>(".mmo-row-main") ||
                     button?.closest<HTMLElement>(".mmo-editor-actions, .mmo-actions") ||
                     button?.parentElement,
-                itemId: features.navigation.ui.editor?.itemId,
-                origin: features.navigation.ui.editor
-                    ? { key: features.navigation.ui.editor.key, view: features.navigation.ui.view }
+                itemId: session.navigation.ui.editor?.itemId,
+                origin: session.navigation.ui.editor
+                    ? { key: session.navigation.ui.editor.key, view: session.navigation.ui.view }
                     : {
-                          view: features.navigation.ui.view,
-                          issueKey: features.navigation.ui.screen === "issue" ? features.issueGuidance.issuePanelState?.issue.key : null,
+                          view: session.navigation.ui.view,
+                          issueKey: session.navigation.ui.screen === "issue" ? session.issueGuidance.issuePanelState?.issue.key : null,
                       },
             };
         }
@@ -116,10 +123,10 @@ export function createActions(features: Features) {
                 if (trigger === button) trigger = null;
             }, 0);
         }
-        features.api.page.addEventListener("click", capture, true);
-        features.api.page.addEventListener("submit", capture, true);
+        ports.api.page.addEventListener("click", capture, true);
+        ports.api.page.addEventListener("submit", capture, true);
         // A filter change is a new event owner, even before a prior click's reset timer runs.
-        features.api.page.addEventListener("change", capture, true);
+        ports.api.page.addEventListener("change", capture, true);
         function acquire() {
             const meta = describe(trigger);
             if (!trigger) {
@@ -136,11 +143,11 @@ export function createActions(features: Features) {
             pending.delete(meta.key);
             if (current === meta) current = null;
             sync();
-            if (typeof features.managerUi.setEditorWritable === "function" && features.navigation.ui.editor?.type === "metadata")
-                features.managerUi.setEditorWritable();
-            if (typeof features.bulk.renderBulkSelection === "function" && features.api.doc) features.bulk.renderBulkSelection();
-            if (typeof features.issues.renderIssues === "function" && features.navigation.ui.issueLoaded && features.navigation.ui.view === "issues")
-                features.issues.renderIssues();
+            if (typeof ports.managerUi.setEditorWritable === "function" && session.navigation.ui.editor?.type === "metadata")
+                ports.managerUi.setEditorWritable();
+            if (typeof ports.bulk.renderBulkSelection === "function" && session.api.doc) ports.bulk.renderBulkSelection();
+            if (typeof ports.issues.renderIssues === "function" && session.navigation.ui.issueLoaded && session.navigation.ui.view === "issues")
+                ports.issues.renderIssues();
             sync();
         }
         function buttonLabel(button: HTMLElement, text: string | null) {
@@ -150,7 +157,7 @@ export function createActions(features: Features) {
             if (node && node.textContent !== text) node.textContent = text;
         }
         function sync() {
-            for (const button of features.api.page.querySelectorAll<HTMLButtonElement>("button")) {
+            for (const button of ports.api.page.querySelectorAll<HTMLButtonElement>("button")) {
                 if (button.closest<HTMLElement>(".mmo-feedback, #mmoMessage")) continue;
                 const meta = describe(button),
                     busy = conflict(meta);
@@ -191,8 +198,8 @@ export function createActions(features: Features) {
                 }
             }
             for (const button of buttons.keys()) if (!button.isConnected) buttons.delete(button);
-            if (features.api.q("mmoReviewCancel"))
-                buttonLabel(features.api.q("mmoReviewCancel"), isPending("mmoActivate") ? "Leave review" : "Cancel review");
+            if (ports.api.q("mmoReviewCancel"))
+                buttonLabel(ports.api.q("mmoReviewCancel"), isPending("mmoActivate") ? "Leave review" : "Cancel review");
         }
         const observer = new MutationObserver((records) => {
             if (
@@ -214,7 +221,7 @@ export function createActions(features: Features) {
                 });
             }
         });
-        observer.observe(features.api.page, { subtree: true, childList: true, attributes: true, attributeFilter: ["disabled"] });
+        observer.observe(ports.api.page, { subtree: true, childList: true, attributes: true, attributeFilter: ["disabled"] });
         function isPending(command: string) {
             return [...pending.values()].some((p) => p.command === command);
         }

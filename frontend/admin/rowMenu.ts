@@ -1,45 +1,46 @@
-import type { Features } from "./features.ts";
-export function createRowMenu(features: Features) {
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface RowMenuDependencies {
+    api: Pick<ControllerContracts["api"], "page" | "q">;
+    navigation: Pick<ControllerContracts["navigation"], "nativeButton">;
+}
+export function createRowMenu(ports: RowMenuDependencies, session: DashboardState) {
     // A single top-layer action menu keeps expanded actions out of list layout.
-    let rowMenuTrigger: HTMLButtonElement | null = null,
-        rowMenuCommands: HTMLButtonElement[] = [];
+
     function closeRowMenu(restoreFocus = false) {
-        const menu = features.api.q("mmoRowMenu"),
-            trigger = rowMenuTrigger;
+        const menu = ports.api.q("mmoRowMenu"),
+            trigger = session.rowMenu.rowMenuTrigger;
         if (menu.matches(":popover-open")) menu.hidePopover();
         if (trigger) trigger.setAttribute("aria-expanded", "false");
-        rowMenuTrigger = null;
+        session.rowMenu.rowMenuTrigger = null;
         if (restoreFocus && trigger?.isConnected) trigger.focus();
     }
     return {
         initialize() {
-            features.api.page.addEventListener("click", (event) => {
+            ports.api.page.addEventListener("click", (event) => {
                 const trigger = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-actions-open]");
                 if (!trigger) return;
-                if (rowMenuTrigger === trigger) {
+                if (session.rowMenu.rowMenuTrigger === trigger) {
                     closeRowMenu(true);
                     return;
                 }
                 closeRowMenu();
                 const row = trigger.closest<HTMLElement>(".mmo-row, .mmo-editor-actions"),
-                    menu = features.api.q("mmoRowMenu");
-                rowMenuTrigger = trigger;
-                rowMenuCommands = [...row!.querySelectorAll<HTMLButtonElement>("[data-row-actions] button")];
-                features.api.q("mmoRowMenuTitle").textContent = row!.querySelector<HTMLElement>("strong")?.textContent || "Actions";
-                features.api.q("mmoRowMenuButtons").innerHTML = rowMenuCommands
+                    menu = ports.api.q("mmoRowMenu");
+                session.rowMenu.rowMenuTrigger = trigger;
+                session.rowMenu.rowMenuCommands = [...row!.querySelectorAll<HTMLButtonElement>("[data-row-actions] button")];
+                ports.api.q("mmoRowMenuTitle").textContent = row!.querySelector<HTMLElement>("strong")?.textContent || "Actions";
+                ports.api.q("mmoRowMenuButtons").innerHTML = session.rowMenu.rowMenuCommands
                     .map((button, index) =>
-                        features.navigation.nativeButton(
-                            button.textContent,
-                            'data-menu-command="' + index + '"' + (button.disabled ? " disabled" : ""),
-                        ),
+                        ports.navigation.nativeButton(button.textContent, 'data-menu-command="' + index + '"' + (button.disabled ? " disabled" : "")),
                     )
                     .join("");
                 // Derive the opaque surface from the native theme, including older theme builds.
-                const surface = [features.api.page, document.body, document.documentElement]
+                const surface = [ports.api.page, document.body, document.documentElement]
                     .map((node) => getComputedStyle(node).backgroundColor)
                     .find((color) => color !== "rgba(0, 0, 0, 0)" && color !== "transparent");
                 if (surface) menu.style.backgroundColor = surface;
-                menu.style.color = getComputedStyle(features.api.page).color;
+                menu.style.color = getComputedStyle(ports.api.page).color;
                 menu.showPopover();
                 const rect = trigger.getBoundingClientRect(),
                     bounds = menu.getBoundingClientRect();
@@ -48,18 +49,18 @@ export function createRowMenu(features: Features) {
                 trigger.setAttribute("aria-expanded", "true");
                 menu.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
             });
-            features.api.q("mmoRowMenu").addEventListener("click", (event) => {
+            ports.api.q("mmoRowMenu").addEventListener("click", (event) => {
                 const command = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-menu-command]");
                 if (!command) return;
-                const original = rowMenuCommands[Number(command.dataset.menuCommand)];
+                const original = session.rowMenu.rowMenuCommands[Number(command.dataset.menuCommand)];
                 closeRowMenu(true);
                 if (original?.isConnected && !original.disabled) original.click();
             });
-            features.api.q("mmoRowMenu").addEventListener("toggle", (event) => {
-                if (event.newState === "closed" && rowMenuTrigger) closeRowMenu(true);
+            ports.api.q("mmoRowMenu").addEventListener("toggle", (event) => {
+                if (event.newState === "closed" && session.rowMenu.rowMenuTrigger) closeRowMenu(true);
             });
-            features.api.q("mmoRowMenu").addEventListener("keydown", (event) => {
-                const buttons = [...features.api.q("mmoRowMenu").querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
+            ports.api.q("mmoRowMenu").addEventListener("keydown", (event) => {
+                const buttons = [...ports.api.q("mmoRowMenu").querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
                 let index = buttons.indexOf(document.activeElement as HTMLButtonElement);
                 if (event.key === "Escape") {
                     event.preventDefault();
@@ -77,18 +78,7 @@ export function createRowMenu(features: Features) {
                 buttons[index]?.focus();
             });
         },
-        get rowMenuTrigger() {
-            return rowMenuTrigger;
-        },
-        set rowMenuTrigger(value: typeof rowMenuTrigger) {
-            rowMenuTrigger = value;
-        },
-        get rowMenuCommands() {
-            return rowMenuCommands;
-        },
-        set rowMenuCommands(value: typeof rowMenuCommands) {
-            rowMenuCommands = value;
-        },
+
         get closeRowMenu() {
             return closeRowMenu;
         },

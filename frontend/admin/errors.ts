@@ -1,4 +1,5 @@
 export class OperationError extends Error {
+    code?: string;
     uncertainWrite = false;
     noticeHandled = false;
 }

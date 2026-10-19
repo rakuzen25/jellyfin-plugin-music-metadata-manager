@@ -10,14 +10,29 @@ using Microsoft.AspNetCore.Routing;
 using Xunit;
 
 namespace MusicMetadataManager.Tests;
-
 public sealed class PlaybackBoundaryTests
 {
     [Fact]
     public async Task IdentityPresentationLeavesPlaybackCreditsAndCapturedScrobblePayloadUnchanged()
     {
-        var native = new BaseItemDto { Id = Guid.NewGuid(), Name = "Fixture track", Artists = ["Fixture artist"], AlbumArtists = [new() { Name = "Fixture album artist", Id = Guid.NewGuid() }] };
-        var arguments = new Dictionary<string, object?> { ["itemId"] = native.Id, ["item"] = native };
+        var native = new BaseItemDto
+        {
+            Id = Guid.NewGuid(),
+            Name = "Fixture track",
+            Artists = ["Fixture artist"],
+            AlbumArtists = [new()
+            {
+                Name = "Fixture album artist",
+                Id = Guid.NewGuid()
+            }
+
+            ]
+        };
+        var arguments = new Dictionary<string, object?>
+        {
+            ["itemId"] = native.Id,
+            ["item"] = native
+        };
         var controller = new PlaystateController();
         var action = new ActionContext(new DefaultHttpContext(), new RouteData(), new ActionDescriptor());
         var context = new ActionExecutingContext(action, [], arguments, controller);
@@ -42,17 +57,26 @@ public sealed class PlaybackBoundaryTests
     }
 
     sealed class PlaystateController;
-    sealed class Configuration : IConfigurationStore
+    sealed class Configuration : IDocumentReader
     {
-        public Document Current { get; } = new() { Identities = [new() { PreferredName = "Preferred overlay", Aliases = ["Fixture artist"] }] };
+        public Document Current { get; } = new()
+        {
+            Identities = [new()
+            {
+                PreferredName = "Preferred overlay",
+                Aliases = ["Fixture artist"]
+            }
+
+            ]
+        };
+
         public void Save(Document document) => throw new InvalidOperationException("Playback must not save configuration");
     }
+
     sealed class Capture : HttpMessageHandler
     {
-        public string? Body
-        {
-            get; private set;
-        }
+        public string? Body { get; private set; }
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Body = await request.Content!.ReadAsStringAsync(cancellationToken);

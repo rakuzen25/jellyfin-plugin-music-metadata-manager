@@ -1,9 +1,13 @@
 # Architecture
 
-`src/Core` owns host-independent correction policy, matching, DTOs and interfaces. `src/Infrastructure` implements atomic JSON storage, clock access and serialized refresh queues. `src/Host` owns authenticated Jellyfin APIs, native entities, registration, lifecycle hooks, and the correction coordinator.
+Core owns correction matching, precedence, field definitions, identities, restoration decisions and named JSON contracts. It has no Jellyfin dependencies. A field has one decision map; typed C# accessors read and write that map without maintaining a second representation.
 
-The correction coordinator's partial files separate draft editing, review preparation and projections while retaining one synchronization gate and the existing persistence ordering. Configuration, journal, clock and work queue interfaces make those effects explicit.
+Application owns document validation, candidate construction, drafts, review sessions, activation and recoverable per-item reconciliation. Its state coordinator serializes mutations. Document readers receive detached copies of the last committed document. Host effects are supplied through workflow ports.
 
-`frontend/admin` contains typed feature modules with explicit imports and local state. Features register before initialization connects DOM events and cross-feature calls. Application-owned review tokens, navigation, serialized writes and uncertain-write handling remain local. The shared build bundles the administrator page without changing its route or appearance.
+Infrastructure implements the atomic state store, content-addressed artwork storage, clock and refresh queue. Application depends on Core; Infrastructure depends on Application and Core. Host composes all three and owns authenticated APIs, native metadata writes, provider lookup, EF inventory inspection, cleanup recovery and lifecycle hooks. Runtime host types never enter Application or Core.
 
-`plugin.toml`, `version.txt`, and `toolkit.lock.json` select the shared foundation. Native tool pins and dependency lockfiles remain authoritative. The toolkit owns build, sandbox, validation and release mechanics; the plugin owns API contracts, state schemas, workflows and tests.
+The rules document, management ledger and admitted work are one committed state snapshot. Activation saves that snapshot before queue admission or cleanup effects. Per-item reconciliation saves original values before native writes and acknowledges work after field and image writes succeed. Reviewed cleanup retains recovery material before deletion and checks its fingerprint again after copying. See [state](../reference/state.md).
+
+The administrator page has application-owned document and editor/session stores. Controllers receive narrow callback dependencies, rather than a universal feature registry. Transport is separate from command and notification ownership. Inventory, field editing, source comparison and artwork rendering are separate metadata-editor components. Runtime imports must be acyclic; type-only controller contracts describe composition callbacks.
+
+`plugin.toml` declares the project graph, distribution payload and validation groups. The locked toolkit owns build and release mechanics; this plugin owns behavior contracts and the [capability preservation matrix](../reference/capabilities.md).

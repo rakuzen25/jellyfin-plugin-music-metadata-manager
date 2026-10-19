@@ -1,4 +1,9 @@
-/** Preview and comparison POSTs do not commit plugin state. */
+/** Auxiliary caches do not commit reviewed configuration or native metadata. */
 export function isWriteRequest(path: string, method: string) {
-    return method !== "GET" && !/^(preview|manager\/compare|manager\/images\/|manager\/items\/.+\/images\/)/.test(path);
+    if (method.toUpperCase() === "GET") return false;
+    const route = path.split("?")[0];
+    return (
+        !["preview", "validate", "manager/compare", "manager/images/cache", "manager/images/upload"].includes(route!) &&
+        !/^manager\/items\/[^/]+\/images\/[^/]+\/pin-current$/.test(route!)
+    );
 }

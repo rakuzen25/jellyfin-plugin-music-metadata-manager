@@ -1,7 +1,15 @@
 import type { BulkContext, IssueContext } from "./responses.ts";
 import type { Change, Fields, Rule } from "./contracts.ts";
-import type { Features } from "./features.ts";
-export function createRules(features: Features) {
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface RulesDependencies {
+    api: Pick<ControllerContracts["api"], "api" | "esc" | "perform" | "q">;
+    actions: Pick<ControllerContracts["actions"], "actions">;
+    notifications: Pick<ControllerContracts["notifications"], "notifications">;
+    managerUi: Pick<ControllerContracts["managerUi"], "managerOpen">;
+    navigation: Pick<ControllerContracts["navigation"], "clearLocal" | "workspaceBack">;
+}
+export function createRules(ports: RulesDependencies, session: DashboardState) {
     let load: () => Promise<void>, status: () => Promise<void>;
     let preview: (change: Partial<Change>, bulk?: BulkContext | null, issues?: IssueContext | null) => Promise<void>;
     const keys = ["title", "album", "artists", "albumArtists", "discNumber", "trackNumber"] as const;
@@ -14,63 +22,67 @@ export function createRules(features: Features) {
         trackNumber: "Track number",
     };
     function typeChanged() {
-        const kind = features.api.q("mmoKind").value;
-        features.api.q("mmoPathArea").hidden = kind === "alias";
-        features.api.q("mmoAliasArea").hidden = kind !== "alias";
-        features.api.q("mmoFieldsArea").hidden = kind === "alias";
-        features.api.q("mmoDefaultsArea").hidden = kind !== "album";
+        const kind = ports.api.q("mmoKind").value;
+        ports.api.q("mmoPathArea").hidden = kind === "alias";
+        ports.api.q("mmoAliasArea").hidden = kind !== "alias";
+        ports.api.q("mmoFieldsArea").hidden = kind === "alias";
+        ports.api.q("mmoDefaultsArea").hidden = kind !== "album";
         for (const k of keys)
-            features.api.q("mmoFields").querySelector<HTMLElement>('[data-field="' + k + '"]')!.hidden =
+            ports.api.q("mmoFields").querySelector<HTMLElement>('[data-field="' + k + '"]')!.hidden =
                 kind === "album" && ["album", "discNumber", "trackNumber"].includes(k);
     }
     function fill(group: string, fields: Fields = {}) {
         for (const k of keys) {
-            const value = fields[k];
-            features.api.q<HTMLInputElement | HTMLTextAreaElement>("mmo" + group + k).value = Array.isArray(value)
+            const decision = fields.decisions?.[k];
+            const value = decision?.mode === "approved" ? decision.value : null;
+            ports.api.q<HTMLInputElement | HTMLTextAreaElement>("mmo" + group + k).value = Array.isArray(value)
                 ? value.join("\n")
                 : String(value ?? "");
         }
     }
     function fields(group: string, albumOnly = false): Fields {
-        const result: Fields = {};
+        const result: Fields = { decisions: {} };
         for (const k of keys) {
             if (albumOnly && ["album", "discNumber", "trackNumber"].includes(k)) continue;
-            const value = features.api.q<HTMLInputElement | HTMLTextAreaElement>("mmo" + group + k).value;
+            const value = ports.api.q<HTMLInputElement | HTMLTextAreaElement>("mmo" + group + k).value;
             if (!value.trim()) continue;
-            if (k === "discNumber" || k === "trackNumber") result[k] = Number(value);
+            if (k === "discNumber" || k === "trackNumber") result.decisions![k] = { mode: "approved", value: Number(value), provenance: "known" };
             else if (k === "artists" || k === "albumArtists")
-                result[k] = value
-                    .split("\n")
-                    .map((x) => x.trim())
-                    .filter(Boolean);
-            else result[k] = value;
+                result.decisions![k] = {
+                    mode: "approved",
+                    value: value
+                        .split("\n")
+                        .map((x) => x.trim())
+                        .filter(Boolean),
+                    provenance: "known",
+                };
+            else result.decisions![k] = { mode: "approved", value, provenance: "known" };
         }
         return result;
     }
     let invalidateReview = function invalidateReview() {
-        features.api.reviewEpoch++;
-        features.api.reviewToken = null;
-        features.actions.actions.setDisabled(features.api.q("mmoActivate"), true);
-        if (features.navigation.ui.screen === "review") {
-            features.api.q("mmoPreviewSummary").textContent =
-                "This review is outdated. Return to edit and preview the current changes before applying.";
-        } else features.api.q("mmoPreviewArea").hidden = true;
+        session.api.reviewEpoch++;
+        session.api.reviewToken = null;
+        ports.actions.actions.setDisabled(ports.api.q("mmoActivate"), true);
+        if (session.navigation.ui.screen === "review") {
+            ports.api.q("mmoPreviewSummary").textContent = "This review is outdated. Return to edit and preview the current changes before applying.";
+        } else ports.api.q("mmoPreviewArea").hidden = true;
     };
     let edit = function edit(r: Partial<Rule> | null | undefined, _nested = false) {
         invalidateReview();
-        features.api.q("mmoEditorState").textContent = r
-            ? features.api.doc.active.some((x) => x.id === r.id)
+        ports.api.q("mmoEditorState").textContent = r
+            ? session.api.doc.active.some((x) => x.id === r.id)
                 ? "Editing an active rule. Its current version stays active until you apply reviewed changes."
                 : "Editing an inactive draft."
             : "New rule. Preview and apply to activate, or save a draft for later.";
-        features.api.editingId = r?.id ?? null;
-        features.api.q("mmoLabel").value = r?.label ?? "";
-        features.api.q("mmoKind").value = r?.kind ?? "track";
-        features.api.q("mmoPath").value = r?.path ?? "";
-        features.api.q("mmoCredit").value = r?.credit ?? "";
-        features.api.q("mmoNames").value = (r?.names ?? []).join("\n");
-        features.api.q("mmoRole").value = r?.role ?? "artists";
-        for (const o of features.api.q("mmoLibraries").options) o.selected = (r?.libraries ?? []).includes(o.value);
+        session.api.editingId = r?.id ?? null;
+        ports.api.q("mmoLabel").value = r?.label ?? "";
+        ports.api.q("mmoKind").value = r?.kind ?? "track";
+        ports.api.q("mmoPath").value = r?.path ?? "";
+        ports.api.q("mmoCredit").value = r?.credit ?? "";
+        ports.api.q("mmoNames").value = (r?.names ?? []).join("\n");
+        ports.api.q("mmoRole").value = r?.role ?? "artists";
+        for (const o of ports.api.q("mmoLibraries").options) o.selected = (r?.libraries ?? []).includes(o.value);
         fill("Fields", r?.fields);
         fill("Defaults", r?.trackDefaults);
         typeChanged();
@@ -80,30 +92,30 @@ export function createRules(features: Features) {
             '<button is="emby-button" class="button-flat emby-button" type="button" data-action="' +
             action +
             '" data-id="' +
-            features.api.esc(id) +
+            ports.api.esc(id) +
             '">' +
             label +
             "</button>"
         );
     }
     let formRule = function formRule(): Rule {
-        const kind = features.api.q("mmoKind").value;
+        const kind = ports.api.q("mmoKind").value;
         return {
-            id: features.api.editingId || crypto.randomUUID().replaceAll("-", ""),
-            label: features.api.q("mmoLabel").value,
+            id: session.api.editingId || crypto.randomUUID().replaceAll("-", ""),
+            label: ports.api.q("mmoLabel").value,
             kind,
-            path: kind === "alias" ? "" : features.api.q("mmoPath").value,
-            credit: kind === "alias" ? features.api.q("mmoCredit").value : "",
+            path: kind === "alias" ? "" : ports.api.q("mmoPath").value,
+            credit: kind === "alias" ? ports.api.q("mmoCredit").value : "",
             names:
                 kind === "alias"
-                    ? features.api
+                    ? ports.api
                           .q("mmoNames")
                           .value.split("\n")
                           .map((x) => x.trim())
                           .filter(Boolean)
                     : [],
-            role: features.api.q("mmoRole").value,
-            libraries: Array.from(features.api.q("mmoLibraries").selectedOptions).map((x) => x.value),
+            role: ports.api.q("mmoRole").value,
+            libraries: Array.from(ports.api.q("mmoLibraries").selectedOptions).map((x) => x.value),
             fields: kind === "alias" ? {} : fields("Fields", kind === "album"),
             trackDefaults: kind === "album" ? fields("Defaults") : {},
         };
@@ -111,7 +123,7 @@ export function createRules(features: Features) {
     return {
         initialize() {
             for (const group of ["Fields", "Defaults"])
-                features.api.q("mmo" + group).innerHTML = keys
+                ports.api.q("mmo" + group).innerHTML = keys
                     .map(
                         (k) =>
                             '<label data-field="' +
@@ -129,41 +141,41 @@ export function createRules(features: Features) {
                             "</label>",
                     )
                     .join("");
-            features.api.q("mmoForm").addEventListener("submit", (e) => {
+            ports.api.q("mmoForm").addEventListener("submit", (e) => {
                 e.preventDefault();
-                features.api.perform(async (operation) => {
-                    features.notifications.notifications.scope(operation);
+                ports.api.perform(async (operation) => {
+                    ports.notifications.notifications.scope(operation);
                     const r = formRule();
-                    features.api.editingId = r.id;
+                    session.api.editingId = r.id;
                     await preview({ edits: [r] });
                 });
             });
-            features.api.q("mmoForm").addEventListener("input", invalidateReview);
-            features.api.q("mmoForm").addEventListener("change", invalidateReview);
-            features.api.q("mmoRules").addEventListener("click", (e) => {
+            ports.api.q("mmoForm").addEventListener("input", invalidateReview);
+            ports.api.q("mmoForm").addEventListener("change", invalidateReview);
+            ports.api.q("mmoRules").addEventListener("click", (e) => {
                 const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-action]");
                 if (!b) return;
-                features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                ports.api.perform(async (operation) => {
+                    const message = ports.notifications.notifications.scope(operation);
                     const id = b.dataset.id!,
                         action = b.dataset.action;
                     if (action === "editActive" || action === "editDraft") {
-                        const rule = (action === "editActive" ? features.api.doc.active : features.api.doc.drafts).find((x) => x.id === id);
+                        const rule = (action === "editActive" ? session.api.doc.active : session.api.doc.drafts).find((x) => x.id === id);
                         if (rule!.metadata) {
-                            await features.managerUi.managerOpen(rule!.metadata.itemId, {
+                            await ports.managerUi.managerOpen(rule!.metadata.itemId, {
                                 ...rule!.metadata,
                                 fields: rule!.fields.decisions || {},
                             });
                         } else {
                             edit(rule);
-                            features.api.q("mmoForm").scrollIntoView();
+                            ports.api.q("mmoForm").scrollIntoView();
                         }
                     } else if (action === "deleteDraft") {
-                        await features.api.api(`drafts/${encodeURIComponent(id)}`, "DELETE");
+                        await ports.api.api(`drafts/${encodeURIComponent(id)}`, "DELETE");
                         invalidateReview();
-                        if (features.navigation.ui.screen === "workspace" && features.api.editingId === id) {
-                            features.navigation.clearLocal();
-                            await features.navigation.workspaceBack();
+                        if (session.navigation.ui.screen === "workspace" && session.api.editingId === id) {
+                            ports.navigation.clearLocal();
+                            await ports.navigation.workspaceBack();
                         }
                         await load();
                         message("Draft deleted. Active rules are unchanged.");
@@ -175,74 +187,74 @@ export function createRules(features: Features) {
                         });
                 });
             });
-            features.api.q("mmoKind").addEventListener("change", typeChanged);
-            features.api.q("mmoNew").onclick = () => edit(null);
-            features.api.q("mmoFind").onclick = () =>
-                features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
-                    const lib = features.api.q("mmoLibraries").selectedOptions[0]?.value,
-                        search = features.api.q("mmoSearch").value,
-                        serial = features.navigation.ui.request,
-                        key = features.navigation.ui.editor?.key;
+            ports.api.q("mmoKind").addEventListener("change", typeChanged);
+            ports.api.q("mmoNew").onclick = () => edit(null);
+            ports.api.q("mmoFind").onclick = () =>
+                ports.api.perform(async (operation) => {
+                    const message = ports.notifications.notifications.scope(operation);
+                    const lib = ports.api.q("mmoLibraries").selectedOptions[0]?.value,
+                        search = ports.api.q("mmoSearch").value,
+                        serial = session.navigation.ui.request,
+                        key = session.navigation.ui.editor?.key;
                     message("Finding matching items…", "loading");
-                    const matches = await features.api.api(
+                    const matches = await ports.api.api(
                         `items?search=${encodeURIComponent(search)}${lib ? "&library=" + encodeURIComponent(lib) : ""}`,
                     );
-                    if (serial !== features.navigation.ui.request || key !== features.navigation.ui.editor?.key) return;
-                    if (features.api.q("mmoSearch").value !== search || features.api.q("mmoLibraries").selectedOptions[0]?.value !== lib) {
+                    if (serial !== session.navigation.ui.request || key !== session.navigation.ui.editor?.key) return;
+                    if (ports.api.q("mmoSearch").value !== search || ports.api.q("mmoLibraries").selectedOptions[0]?.value !== lib) {
                         message("Search changed. Find items again for the current selection.", "warning");
                         return;
                     }
-                    features.api.found = matches;
-                    message(features.api.found.length + " matching items found.");
-                    features.api.q("mmoItems").innerHTML = features.api.found
-                        .map((x, i) => '<option value="' + i + '">' + features.api.esc(x.kind + " · " + x.path) + "</option>")
+                    session.api.found = matches;
+                    message(session.api.found.length + " matching items found.");
+                    ports.api.q("mmoItems").innerHTML = session.api.found
+                        .map((x, i) => '<option value="' + i + '">' + ports.api.esc(x.kind + " · " + x.path) + "</option>")
                         .join("");
                 });
-            features.api.q("mmoChoose").onclick = () => {
-                const item = features.api.found[Number(features.api.q("mmoItems").value)];
+            ports.api.q("mmoChoose").onclick = () => {
+                const item = session.api.found[Number(ports.api.q("mmoItems").value)];
                 if (!item) return;
-                features.api.q("mmoPath").value = item.path;
-                features.api.q("mmoKind").value = item.kind;
-                for (const o of features.api.q("mmoLibraries").options) o.selected = o.value === item.library;
+                ports.api.q("mmoPath").value = item.path;
+                ports.api.q("mmoKind").value = item.kind;
+                for (const o of ports.api.q("mmoLibraries").options) o.selected = o.value === item.library;
                 typeChanged();
             };
-            features.api.q("mmoPreviewAll").onclick = () =>
-                features.api.perform(() =>
+            ports.api.q("mmoPreviewAll").onclick = () =>
+                ports.api.perform(() =>
                     preview({
-                        activateIds: features.api.doc.drafts.map((x) => x.id),
-                        activateIdentities: features.api.doc.identityDrafts.map((x) => x.id),
-                        activatePolicies: features.api.doc.policyDrafts.map((x) => x.id),
+                        activateIds: session.api.doc.drafts.map((x) => x.id),
+                        activateIdentities: session.api.doc.identityDrafts.map((x) => x.id),
+                        activatePolicies: session.api.doc.policyDrafts.map((x) => x.id),
                     }),
                 );
-            features.api.q("mmoApply").onclick = () =>
-                features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+            ports.api.q("mmoApply").onclick = () =>
+                ports.api.perform(async (operation) => {
+                    const message = ports.notifications.notifications.scope(operation);
                     message("Queuing active corrections…", "loading");
-                    const r = await features.api.api("apply", "POST");
+                    const r = await ports.api.api("apply", "POST");
                     await status();
                     message(r.queued + " items queued for correction.");
                 });
-            features.api.q("mmoReload").onclick = () => features.api.perform(load);
-            features.api.q("mmoExport").onclick = () =>
-                features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
-                    const original = features.api.q("mmoJson").value;
+            ports.api.q("mmoReload").onclick = () => ports.api.perform(load);
+            ports.api.q("mmoExport").onclick = () =>
+                ports.api.perform(async (operation) => {
+                    const message = ports.notifications.notifications.scope(operation);
+                    const original = ports.api.q("mmoJson").value;
                     message("Loading export…", "loading");
-                    const result = await features.api.api("export");
-                    if (!features.notifications.notifications.valid(operation)) return;
-                    if (features.api.q("mmoJson").value !== original) {
+                    const result = await ports.api.api("export");
+                    if (!ports.notifications.notifications.valid(operation)) return;
+                    if (ports.api.q("mmoJson").value !== original) {
                         message("The JSON editor changed while loading. Load export again to replace it.", "warning");
                         return;
                     }
-                    features.api.q("mmoJson").value = JSON.stringify(result, null, 2);
+                    ports.api.q("mmoJson").value = JSON.stringify(result, null, 2);
                     message("Export loaded into the editor.");
                 });
-            features.api.q("mmoDownload").onclick = () =>
-                features.api.perform(async (operation) => {
-                    features.notifications.notifications.scope(operation);
+            ports.api.q("mmoDownload").onclick = () =>
+                ports.api.perform(async (operation) => {
+                    ports.notifications.notifications.scope(operation);
                     const url = URL.createObjectURL(
-                        new Blob([JSON.stringify(await features.api.api("export"), null, 2)], {
+                        new Blob([JSON.stringify(await ports.api.api("export"), null, 2)], {
                             type: "application/json",
                         }),
                     );
@@ -252,12 +264,12 @@ export function createRules(features: Features) {
                     a.click();
                     URL.revokeObjectURL(url);
                 });
-            features.api.q("mmoImport").onclick = () =>
-                features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
-                    await features.api.api("import", "POST", JSON.parse(features.api.q("mmoJson").value));
-                    features.api.reviewToken = null;
-                    features.api.q("mmoPreviewArea").hidden = true;
+            ports.api.q("mmoImport").onclick = () =>
+                ports.api.perform(async (operation) => {
+                    const message = ports.notifications.notifications.scope(operation);
+                    await ports.api.api("import", "POST", JSON.parse(ports.api.q("mmoJson").value));
+                    session.api.reviewToken = null;
+                    ports.api.q("mmoPreviewArea").hidden = true;
                     await load();
                     message("Imported as drafts. Active rules were not changed.");
                 });

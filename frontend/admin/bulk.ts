@@ -13,12 +13,16 @@ type BulkField = keyof Pick<
 >;
 import { operationError } from "./errors.ts";
 import type { BulkEntry, BulkContext } from "./responses.ts";
-import type { Features } from "./features.ts";
-export function createBulk(features: Features) {
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface BulkDependencies {
+    api: Pick<ControllerContracts["api"], "api" | "esc" | "page" | "perform" | "q">;
+    notifications: Pick<ControllerContracts["notifications"], "notifications">;
+    rules: Pick<ControllerContracts["rules"], "invalidateReview" | "load" | "preview">;
+}
+export function createBulk(ports: BulkDependencies, session: DashboardState) {
     // Selection refers to saved backing records, independent of presentation type.
-    const bulkSelection = new Set<string>();
-    let bulkMatches: HTMLElement[] = [],
-        bulkBusy = false;
+
     const bulkLabels: Record<string, string> = {
         apply: "Review & apply saved drafts",
         disable: "Review disable",
@@ -47,9 +51,9 @@ export function createBulk(features: Features) {
                 itemId?: string;
             }[],
         ][] = [
-            ["rule", features.api.doc.active, features.api.doc.drafts],
-            ["identity", features.api.doc.identities, features.api.doc.identityDrafts],
-            ["policy", features.api.doc.policies, features.api.doc.policyDrafts],
+            ["rule", session.api.doc.active, session.api.doc.drafts],
+            ["identity", session.api.doc.identities, session.api.doc.identityDrafts],
+            ["policy", session.api.doc.policies, session.api.doc.policyDrafts],
         ];
         return groups.flatMap(([kind, active, drafts]) =>
             [...new Set([...active, ...drafts].map((x) => x.id))].map((id) => {
@@ -68,45 +72,45 @@ export function createBulk(features: Features) {
         );
     }
     function bulkTargets(action: string) {
-        const selected = bulkEntries().filter((e) => bulkSelection.has(e.key));
+        const selected = bulkEntries().filter((e) => session.bulk.bulkSelection.has(e.key));
         const eligible = selected.filter((e) => (action === "apply" || action === "discard" ? e.draft : e.live));
         return { eligible, skipped: selected.filter((e) => !eligible.includes(e)) };
     }
     function renderBulkSelection() {
-        if (!features.api.doc) return;
+        if (!session.api.doc) return;
         const entries = bulkEntries(),
             keys = new Set(entries.map((e) => e.key));
-        for (const key of bulkSelection) if (!keys.has(key)) bulkSelection.delete(key);
-        for (const input of features.api.page.querySelectorAll<HTMLInputElement>("[data-change-select]"))
-            input.checked = bulkSelection.has(input.dataset.changeSelect!);
-        features.api.q("mmoSelectedCount").textContent = bulkSelection.size + " selected";
-        features.api.q("mmoBulkToolbar").hidden = !bulkSelection.size;
-        for (const button of features.api.page.querySelectorAll<HTMLButtonElement>("[data-bulk-action]")) {
+        for (const key of session.bulk.bulkSelection) if (!keys.has(key)) session.bulk.bulkSelection.delete(key);
+        for (const input of ports.api.page.querySelectorAll<HTMLInputElement>("[data-change-select]"))
+            input.checked = session.bulk.bulkSelection.has(input.dataset.changeSelect!);
+        ports.api.q("mmoSelectedCount").textContent = session.bulk.bulkSelection.size + " selected";
+        ports.api.q("mmoBulkToolbar").hidden = !session.bulk.bulkSelection.size;
+        for (const button of ports.api.page.querySelectorAll<HTMLButtonElement>("[data-bulk-action]")) {
             const { eligible, skipped } = bulkTargets(button.dataset.bulkAction!);
             button.textContent = bulkLabels[button.dataset.bulkAction!] + " (" + eligible.length + " eligible, " + skipped.length + " skipped)";
-            button.disabled = bulkBusy || !eligible.length;
+            button.disabled = session.bulk.bulkBusy || !eligible.length;
         }
-        features.api.q("mmoClearSelection").disabled = bulkBusy || !bulkSelection.size;
-        features.api.q("mmoSelectPage").disabled = bulkBusy || !bulkMatches.some((r) => !r.hidden);
-        features.api.q("mmoSelectFiltered").disabled = bulkBusy || !bulkMatches.length;
-        for (const input of features.api.page.querySelectorAll<HTMLInputElement>("[data-change-select]")) input.disabled = bulkBusy;
+        ports.api.q("mmoClearSelection").disabled = session.bulk.bulkBusy || !session.bulk.bulkSelection.size;
+        ports.api.q("mmoSelectPage").disabled = session.bulk.bulkBusy || !session.bulk.bulkMatches.some((r) => !r.hidden);
+        ports.api.q("mmoSelectFiltered").disabled = session.bulk.bulkBusy || !session.bulk.bulkMatches.length;
+        for (const input of ports.api.page.querySelectorAll<HTMLInputElement>("[data-change-select]")) input.disabled = session.bulk.bulkBusy;
     }
     async function bulkAction(action: string) {
-        const message = features.notifications.notifications.scope();
-        if (bulkBusy) return;
+        const message = ports.notifications.notifications.scope();
+        if (session.bulk.bulkBusy) return;
         const context = { action, ...bulkTargets(action) };
         if (!context.eligible.length) throw Error("No selected saved versions can receive this action.");
-        bulkBusy = true;
+        session.bulk.bulkBusy = true;
         renderBulkSelection();
         try {
             if (action === "discard") {
-                await features.api.api("drafts/discard", "POST", {
-                    expectedRevision: features.api.doc.revision,
+                await ports.api.api("drafts/discard", "POST", {
+                    expectedRevision: session.api.doc.revision,
                     targets: context.eligible.map(({ kind, id }) => ({ kind, id })),
                 });
-                context.eligible.forEach((e) => bulkSelection.delete(e.key));
-                features.rules.invalidateReview();
-                await features.rules.load();
+                context.eligible.forEach((e) => session.bulk.bulkSelection.delete(e.key));
+                ports.rules.invalidateReview();
+                await ports.rules.load();
                 message(
                     context.eligible.length +
                         " saved drafts discarded; " +
@@ -134,20 +138,20 @@ export function createBulk(features: Features) {
             };
             const change: Partial<Record<BulkField, string[]>> = {};
             for (const e of context.eligible) (change[fields[e.kind]![action]!] ||= []).push(e.id);
-            await features.rules.preview(change, context);
+            await ports.rules.preview(change, context);
         } catch (caughtError) {
             const error = operationError(caughtError);
-            if (action === "discard") await features.rules.load();
+            if (action === "discard") await ports.rules.load();
             throw error;
         } finally {
-            bulkBusy = false;
+            session.bulk.bulkBusy = false;
             renderBulkSelection();
         }
     }
     function renderBulkReview(context: BulkContext | null | undefined) {
-        features.api.q("mmoBulkReview").hidden = !context;
+        ports.api.q("mmoBulkReview").hidden = !context;
         if (!context) {
-            features.api.q("mmoBulkReview").innerHTML = "";
+            ports.api.q("mmoBulkReview").innerHTML = "";
             return;
         }
         const rows = context.eligible
@@ -162,17 +166,17 @@ export function createBulk(features: Features) {
                             : "The saved pending revision is retained.";
                 return (
                     "<li><strong>" +
-                    features.api.esc(e.name) +
+                    ports.api.esc(e.name) +
                     "</strong> · " +
-                    features.api.esc(e.kind) +
-                    (effect ? "<p>" + features.api.esc(effect) + "</p>" : "") +
+                    ports.api.esc(e.kind) +
+                    (effect ? "<p>" + ports.api.esc(effect) + "</p>" : "") +
                     "</li>"
                 );
             })
             .join("");
-        features.api.q("mmoBulkReview").innerHTML =
+        ports.api.q("mmoBulkReview").innerHTML =
             "<h3>" +
-            features.api.esc(bulkLabels[context.action]) +
+            ports.api.esc(bulkLabels[context.action]) +
             "</h3><p>" +
             context.eligible.length +
             " targeted · " +
@@ -186,7 +190,7 @@ export function createBulk(features: Features) {
                       .map(
                           (e) =>
                               "<li>" +
-                              features.api.esc(e.name) +
+                              ports.api.esc(e.name) +
                               " — " +
                               (context.action === "apply" ? "No saved draft" : "No active version") +
                               "</li>",
@@ -198,8 +202,8 @@ export function createBulk(features: Features) {
     function completeBulk(context: BulkContext | null | undefined) {
         if (!context) return;
         for (const e of context.eligible) {
-            bulkSelection.delete(e.key);
-            for (const entry of features.navigation.ui.locals.values())
+            session.bulk.bulkSelection.delete(e.key);
+            for (const entry of session.navigation.ui.locals.values())
                 if (
                     entry.data.id === e.id &&
                     ((e.kind === "identity" && entry.type === "identity") || (e.kind !== "identity" && entry.type !== "identity"))
@@ -209,44 +213,30 @@ export function createBulk(features: Features) {
     }
     return {
         initialize() {
-            features.api.page.addEventListener("change", (event) => {
+            ports.api.page.addEventListener("change", (event) => {
                 const key = (event.target as HTMLElement).dataset.changeSelect;
                 if (!key) return;
-                if ((event.target as HTMLInputElement).checked) bulkSelection.add(key);
-                else bulkSelection.delete(key);
-                features.rules.invalidateReview();
+                if ((event.target as HTMLInputElement).checked) session.bulk.bulkSelection.add(key);
+                else session.bulk.bulkSelection.delete(key);
+                ports.rules.invalidateReview();
                 renderBulkSelection();
             });
-            features.api.q("mmoSelectPage").onclick = () => {
-                bulkMatches.filter((r) => !r.hidden).forEach((r) => bulkSelection.add(r.dataset.changeKey!));
+            ports.api.q("mmoSelectPage").onclick = () => {
+                session.bulk.bulkMatches.filter((r) => !r.hidden).forEach((r) => session.bulk.bulkSelection.add(r.dataset.changeKey!));
                 renderBulkSelection();
             };
-            features.api.q("mmoSelectFiltered").onclick = () => {
-                bulkMatches.forEach((r) => bulkSelection.add(r.dataset.changeKey!));
+            ports.api.q("mmoSelectFiltered").onclick = () => {
+                session.bulk.bulkMatches.forEach((r) => session.bulk.bulkSelection.add(r.dataset.changeKey!));
                 renderBulkSelection();
             };
-            features.api.q("mmoClearSelection").onclick = () => {
-                bulkSelection.clear();
+            ports.api.q("mmoClearSelection").onclick = () => {
+                session.bulk.bulkSelection.clear();
                 renderBulkSelection();
             };
-            for (const button of features.api.page.querySelectorAll<HTMLButtonElement>("[data-bulk-action]"))
-                button.onclick = () => features.api.perform(() => bulkAction(button.dataset.bulkAction!));
+            for (const button of ports.api.page.querySelectorAll<HTMLButtonElement>("[data-bulk-action]"))
+                button.onclick = () => ports.api.perform(() => bulkAction(button.dataset.bulkAction!));
         },
-        get bulkSelection() {
-            return bulkSelection;
-        },
-        get bulkMatches() {
-            return bulkMatches;
-        },
-        set bulkMatches(value: typeof bulkMatches) {
-            bulkMatches = value;
-        },
-        get bulkBusy() {
-            return bulkBusy;
-        },
-        set bulkBusy(value: typeof bulkBusy) {
-            bulkBusy = value;
-        },
+
         get bulkLabels() {
             return bulkLabels;
         },

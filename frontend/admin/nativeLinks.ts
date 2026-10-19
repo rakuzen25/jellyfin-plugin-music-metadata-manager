@@ -1,7 +1,11 @@
 import type { Rule } from "./contracts.ts";
 import type { Issue } from "./responses.ts";
-import type { Features } from "./features.ts";
-export function createNativeLinks(features: Features) {
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface NativeLinksDependencies {
+    api: Pick<ControllerContracts["api"], "api" | "esc" | "page" | "q">;
+}
+export function createNativeLinks(ports: NativeLinksDependencies, session: DashboardState) {
     // Native navigation is read-only and independent of manager/editor actions.
     function nativePageUrl(id: string | null | undefined, locationHref = window.location.href, server = ApiClient.serverId()) {
         if (!/^(?:[a-f0-9]{32}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/i.test(String(id || ""))) return null;
@@ -14,11 +18,11 @@ export function createNativeLinks(features: Features) {
         const label = "Open " + (name || "item") + " in Jellyfin (new tab)";
         return (
             '<span class="mmo-native-slot" data-native-id="' +
-            features.api.esc(id || "") +
+            ports.api.esc(id || "") +
             '"' +
-            (ruleId ? ' data-native-rule="' + features.api.esc(ruleId) + '"' : "") +
+            (ruleId ? ' data-native-rule="' + ports.api.esc(ruleId) + '"' : "") +
             ' data-native-label="' +
-            features.api.esc(label) +
+            ports.api.esc(label) +
             '" data-native-compact="' +
             compact +
             '"></span>'
@@ -29,7 +33,7 @@ export function createNativeLinks(features: Features) {
     }
     function issueNativeLink(issue: Issue, compact = true) {
         if (issue.itemId) return nativeLink(issue.itemId, issue.name, compact);
-        const identity = issue.guidance?.evidence?.identity || features.api.doc?.identities?.find((i) => i.id === issue.identityId);
+        const identity = issue.guidance?.evidence?.identity || session.api.doc?.identities?.find((i) => i.id === issue.identityId);
         if (identity) return nativeLink(identity.artistId, identity.preferredName, compact);
         if (issue.type === "unmatched") return nativeRuleLink(issue.context, compact);
         const item = issue.guidance?.evidence?.items?.[0];
@@ -39,20 +43,20 @@ export function createNativeLinks(features: Features) {
         if (!path || !["track", "album"].includes(kind)) return "";
         return nativeLink(null, name, compact, "path").replace(
             ' data-native-rule="path"',
-            ' data-native-path="' + features.api.esc(path) + '" data-native-kind="' + kind + '"',
+            ' data-native-path="' + ports.api.esc(path) + '" data-native-kind="' + kind + '"',
         );
     }
     function updateWorkspaceNativeLinks() {
-        if (features.navigation.ui.screen !== "workspace") return;
-        if (features.navigation.ui.editor?.type === "identity") {
-            features.api.q("mmoWorkspaceNative").innerHTML = nativeLink(
-                features.api.q("mmoIdentityArtist").value,
-                features.api.q("mmoIdentityName").value,
+        if (session.navigation.ui.screen !== "workspace") return;
+        if (session.navigation.ui.editor?.type === "identity") {
+            ports.api.q("mmoWorkspaceNative").innerHTML = nativeLink(
+                ports.api.q("mmoIdentityArtist").value,
+                ports.api.q("mmoIdentityName").value,
                 false,
             );
             for (const suffix of ["Artist", "Person", "Artists", "Persons"]) {
-                const select = features.api.q<HTMLSelectElement>("mmoIdentity" + suffix);
-                let holder = features.api.page.querySelector<HTMLElement>("#mmoNativeIdentity" + suffix);
+                const select = ports.api.q<HTMLSelectElement>("mmoIdentity" + suffix);
+                let holder = ports.api.page.querySelector<HTMLElement>("#mmoNativeIdentity" + suffix);
                 if (!holder) {
                     holder = document.createElement("div");
                     holder.id = "mmoNativeIdentity" + suffix;
@@ -63,24 +67,21 @@ export function createNativeLinks(features: Features) {
                     .map((o) => nativeLink(o.value, o.textContent, false))
                     .join("");
             }
-        } else if (features.navigation.ui.editor?.type === "rule") {
-            features.api.q("mmoWorkspaceNative").innerHTML = nativePathLink(
-                features.api.q("mmoPath").value,
-                features.api.q("mmoKind").value,
-                features.navigation.ui.editor.name,
+        } else if (session.navigation.ui.editor?.type === "rule") {
+            ports.api.q("mmoWorkspaceNative").innerHTML = nativePathLink(
+                ports.api.q("mmoPath").value,
+                ports.api.q("mmoKind").value,
+                session.navigation.ui.editor.name,
             );
         }
     }
-    let nativeLinkScheduled = false,
-        nativeLinkRunning = false,
-        nativeLinkEpoch = 0,
-        nativeLinksActive = true;
+
     async function resolveNativeLinks() {
-        if (nativeLinkRunning || !features.api.page.isConnected || !nativeLinksActive) return;
-        const epoch = nativeLinkEpoch;
-        nativeLinkRunning = true;
+        if (session.nativeLinks.nativeLinkRunning || !ports.api.page.isConnected || !session.nativeLinks.nativeLinksActive) return;
+        const epoch = session.nativeLinks.nativeLinkEpoch;
+        session.nativeLinks.nativeLinkRunning = true;
         try {
-            const slots = [...features.api.page.querySelectorAll<HTMLElement>(".mmo-native-slot:not([data-native-resolved])")].slice(0, 20);
+            const slots = [...ports.api.page.querySelectorAll<HTMLElement>(".mmo-native-slot:not([data-native-resolved])")].slice(0, 20);
             if (!slots.length) return;
             slots.forEach((slot) => (slot.dataset.nativeResolved = "pending"));
             const ids = [...new Set(slots.map((s) => s.dataset.nativeId).filter(Boolean))];
@@ -88,10 +89,10 @@ export function createNativeLinks(features: Features) {
             const paths = slots
                 .filter((s) => s.dataset.nativePath)
                 .map((s) => ({ key: s.dataset.nativeKind + ":" + s.dataset.nativePath, path: s.dataset.nativePath, kind: s.dataset.nativeKind }));
-            const data = await features.api.api(
+            const data = await ports.api.api(
                 `manager/navigation?${new URLSearchParams({ ids: ids.join(","), rules: rules.join(","), paths: JSON.stringify(paths) })}`,
             );
-            if (!features.api.page.isConnected || epoch !== nativeLinkEpoch || !nativeLinksActive) return;
+            if (!ports.api.page.isConnected || epoch !== session.nativeLinks.nativeLinkEpoch || !session.nativeLinks.nativeLinksActive) return;
             for (const slot of slots) {
                 if (!slot.isConnected) continue;
                 const target = slot.dataset.nativePath
@@ -105,11 +106,11 @@ export function createNativeLinks(features: Features) {
                         '<a class="emby-button button-flat mmo-native-link' +
                         (slot.dataset.nativeCompact === "true" ? " mmo-native-icon" : "") +
                         '" href="' +
-                        features.api.esc(href) +
+                        ports.api.esc(href) +
                         '" target="_blank" rel="noopener" aria-label="' +
-                        features.api.esc(slot.dataset.nativeLabel) +
+                        ports.api.esc(slot.dataset.nativeLabel) +
                         '" title="' +
-                        features.api.esc(slot.dataset.nativeLabel) +
+                        ports.api.esc(slot.dataset.nativeLabel) +
                         '">' +
                         (slot.dataset.nativeCompact === "true"
                             ? '<span aria-hidden="true">↗</span>'
@@ -119,41 +120,41 @@ export function createNativeLinks(features: Features) {
                     slot.innerHTML = '<span class="secondaryText">Jellyfin page unavailable — record missing or target ambiguous.</span>';
             }
         } catch {
-            if (epoch !== nativeLinkEpoch || !nativeLinksActive) return;
+            if (epoch !== session.nativeLinks.nativeLinkEpoch || !session.nativeLinks.nativeLinksActive) return;
             // Navigation availability must never interfere with editors or mutations.
-            features.api.page.querySelectorAll<HTMLElement>('.mmo-native-slot[data-native-resolved="pending"]').forEach((slot) => {
+            ports.api.page.querySelectorAll<HTMLElement>('.mmo-native-slot[data-native-resolved="pending"]').forEach((slot) => {
                 if (slot.dataset.nativeCompact !== "true") slot.textContent = "Jellyfin link unavailable. Reopen this view to retry.";
             });
         } finally {
-            nativeLinkRunning = false;
+            session.nativeLinks.nativeLinkRunning = false;
             if (
-                nativeLinksActive &&
-                features.api.page.isConnected &&
-                features.api.page.querySelector<HTMLElement>(".mmo-native-slot:not([data-native-resolved])")
+                session.nativeLinks.nativeLinksActive &&
+                ports.api.page.isConnected &&
+                ports.api.page.querySelector<HTMLElement>(".mmo-native-slot:not([data-native-resolved])")
             )
                 scheduleNativeLinks();
         }
     }
     function scheduleNativeLinks() {
-        if (nativeLinkScheduled) return;
-        nativeLinkScheduled = true;
+        if (session.nativeLinks.nativeLinkScheduled) return;
+        session.nativeLinks.nativeLinkScheduled = true;
         queueMicrotask(() => {
-            nativeLinkScheduled = false;
+            session.nativeLinks.nativeLinkScheduled = false;
             resolveNativeLinks();
         });
     }
     const nativeLinkObserver = new MutationObserver(scheduleNativeLinks);
     function nativeLinksRouteChanged() {
         if (!/configurationpage\?[^#]*name=musicmetadatamanager(?:&|$)/i.test(window.location.hash)) {
-            nativeLinksActive = false;
-            nativeLinkEpoch++;
+            session.nativeLinks.nativeLinksActive = false;
+            session.nativeLinks.nativeLinkEpoch++;
             nativeLinkObserver.disconnect();
         }
     }
     const nativeLinksDetached = new MutationObserver(() => {
-        if (!features.api.page.isConnected) {
-            nativeLinksActive = false;
-            nativeLinkEpoch++;
+        if (!ports.api.page.isConnected) {
+            session.nativeLinks.nativeLinksActive = false;
+            session.nativeLinks.nativeLinkEpoch++;
             nativeLinkObserver.disconnect();
             nativeLinksDetached.disconnect();
             window.removeEventListener("hashchange", nativeLinksRouteChanged);
@@ -161,8 +162,8 @@ export function createNativeLinks(features: Features) {
     });
     return {
         initialize() {
-            nativeLinkObserver.observe(features.api.page, { childList: true, subtree: true });
-            features.api.page.addEventListener("change", (e) => {
+            nativeLinkObserver.observe(ports.api.page, { childList: true, subtree: true });
+            ports.api.page.addEventListener("change", (e) => {
                 if (
                     ["mmoIdentityArtist", "mmoIdentityPerson", "mmoIdentityArtists", "mmoIdentityPersons", "mmoKind"].includes(
                         (e.target as HTMLElement).id,
@@ -170,19 +171,19 @@ export function createNativeLinks(features: Features) {
                 )
                     updateWorkspaceNativeLinks();
             });
-            features.api.page.addEventListener("input", (e) => {
+            ports.api.page.addEventListener("input", (e) => {
                 if ((e.target as HTMLElement).id === "mmoPath") updateWorkspaceNativeLinks();
             });
             for (const event of ["pagehide", "viewhide", "viewbeforehide"])
-                features.api.page.addEventListener(event, () => {
-                    nativeLinksActive = false;
-                    nativeLinkEpoch++;
+                ports.api.page.addEventListener(event, () => {
+                    session.nativeLinks.nativeLinksActive = false;
+                    session.nativeLinks.nativeLinkEpoch++;
                     nativeLinkObserver.disconnect();
                 });
-            features.api.page.addEventListener("pageshow", () => {
-                nativeLinksActive = true;
-                nativeLinkObserver.observe(features.api.page, { childList: true, subtree: true });
-                features.api.page.querySelectorAll<HTMLElement>(".mmo-native-slot").forEach((s) => {
+            ports.api.page.addEventListener("pageshow", () => {
+                session.nativeLinks.nativeLinksActive = true;
+                nativeLinkObserver.observe(ports.api.page, { childList: true, subtree: true });
+                ports.api.page.querySelectorAll<HTMLElement>(".mmo-native-slot").forEach((s) => {
                     delete s.dataset.nativeResolved;
                     s.replaceChildren();
                 });
@@ -209,30 +210,7 @@ export function createNativeLinks(features: Features) {
         get updateWorkspaceNativeLinks() {
             return updateWorkspaceNativeLinks;
         },
-        get nativeLinkScheduled() {
-            return nativeLinkScheduled;
-        },
-        set nativeLinkScheduled(value: typeof nativeLinkScheduled) {
-            nativeLinkScheduled = value;
-        },
-        get nativeLinkRunning() {
-            return nativeLinkRunning;
-        },
-        set nativeLinkRunning(value: typeof nativeLinkRunning) {
-            nativeLinkRunning = value;
-        },
-        get nativeLinkEpoch() {
-            return nativeLinkEpoch;
-        },
-        set nativeLinkEpoch(value: typeof nativeLinkEpoch) {
-            nativeLinkEpoch = value;
-        },
-        get nativeLinksActive() {
-            return nativeLinksActive;
-        },
-        set nativeLinksActive(value: typeof nativeLinksActive) {
-            nativeLinksActive = value;
-        },
+
         get resolveNativeLinks() {
             return resolveNativeLinks;
         },

@@ -6,6 +6,7 @@ import urllib.request
 import uuid
 
 from jellyfin_plugin_toolkit.acceptance import inventory
+from jellyfin_plugin_toolkit.context import Context
 
 from .manager import characterize_manager
 from .media import MusicSession as Session
@@ -69,7 +70,11 @@ def characterize(session):
         "kind": "track",
         "path": "/fixture-media/track.flac",
         "libraries": [libraries[0]["id"]],
-        "fields": {"title": "Reviewed synthetic title"},
+        "fields": {
+            "decisions": {
+                "title": {"mode": "approved", "value": "Reviewed synthetic title"}
+            }
+        },
         "trackDefaults": {},
     }
     endpoint(session, "drafts", "POST", rule)
@@ -132,17 +137,15 @@ def characterize(session):
     session.restart()
     session.assert_loaded()
     assert endpoint(session, "rules") == imported
-    assert (
-        session.root
-        / "config/plugins/configurations/Jellyfin.Plugin.MusicMetadataManager.xml"
-    ).is_file()
+    assert (session.root / "config/data/MusicMetadataManager/state.json").is_file()
     assert (session.root / "config/data/MusicMetadataManager").is_dir()
     return imported
 
 
 def main():
-    inventory()
-    with Session() as session:
+    context = Context.load()
+    inventory(context)
+    with Session(context) as session:
         characterize(session)
     print(
         "PASS: fresh installation, administrator authorization, draft/preview/activation/import, native correction/restoration, retained metadata, artwork, identity favorites, cleanup safeguards, same-version restart preserve current configuration, journal state and media bytes"

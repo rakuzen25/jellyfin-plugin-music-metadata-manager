@@ -1,4 +1,4 @@
-import type { Row, CleanupOutcome, ArtistIdentity, Rule } from "./contracts.ts";
+import type { FieldDefinition, Row, CleanupOutcome, ArtistIdentity, Rule } from "./contracts.ts";
 import type {
     ApplicationReport,
     Dependencies,
@@ -94,78 +94,80 @@ export interface Comparison {
     }[];
     notes: string[];
 }
-export type ApiResult<P extends string> = P extends "preview"
-    ? ReviewPreview
-    : P extends "activate"
-      ? ActivationResult
-      : P extends "identities/names"
-        ? AliasSuggestion[]
-        : P extends `identities/suggestions?${string}`
-          ? {
-                suggestions: AliasSuggestion[];
-            }
-          : P extends "rules" | "export"
-            ? Document
-            : P extends "status"
-              ? Status
-              : P extends "manager/issues"
-                ? {
-                      revision: number;
-                      items: Issue[];
-                      archivedReports: ApplicationReport[];
-                  }
-                : P extends "libraries"
+export type ApiResult<P extends string> = P extends "manager/fields"
+    ? FieldDefinition[]
+    : P extends "preview"
+      ? ReviewPreview
+      : P extends "activate"
+        ? ActivationResult
+        : P extends "identities/names"
+          ? AliasSuggestion[]
+          : P extends `identities/suggestions?${string}`
+            ? {
+                  suggestions: AliasSuggestion[];
+              }
+            : P extends "rules" | "export"
+              ? Document
+              : P extends "status"
+                ? Status
+                : P extends "manager/issues"
                   ? {
-                        id: string;
-                        name: string;
-                        paths: string[];
-                    }[]
-                  : P extends "identities/records"
-                    ? IdentityRecords
-                    : P extends `items?${string}`
-                      ? View[]
-                      : P extends `manager/inventory?${string}`
-                        ? {
-                              total: number;
-                              start: number;
-                              limit: number;
-                              items: InventoryEntry[];
-                              view: string;
-                          }
-                        : P extends `manager/items/${string}/dependencies?${string}`
-                          ? Dependencies
-                          : P extends `manager/items/${string}/tracks`
-                            ? {
-                                  albumId: string;
-                                  total: number;
-                                  items: (NativeRecord & {
-                                      artists: string[];
-                                      discNumber: number | null;
-                                      trackNumber: number | null;
-                                      managed: boolean;
-                                  })[];
-                              }
-                            : P extends `manager/items/${string}/images/${string}` | "manager/images/cache"
-                              ? ImageDecision
-                              : P extends `manager/items/${string}`
-                                ? ManagerDetails
-                                : P extends "manager/compare"
-                                  ? Comparison
-                                  : P extends "apply"
-                                    ? {
-                                          queued: number;
-                                      }
-                                    : P extends `manager/navigation?${string}`
+                        revision: number;
+                        items: Issue[];
+                        archivedReports: ApplicationReport[];
+                    }
+                  : P extends "libraries"
+                    ? {
+                          id: string;
+                          name: string;
+                          paths: string[];
+                      }[]
+                    : P extends "identities/records"
+                      ? IdentityRecords
+                      : P extends `items?${string}`
+                        ? View[]
+                        : P extends `manager/inventory?${string}`
+                          ? {
+                                total: number;
+                                start: number;
+                                limit: number;
+                                items: InventoryEntry[];
+                                view: string;
+                            }
+                          : P extends `manager/items/${string}/dependencies?${string}`
+                            ? Dependencies
+                            : P extends `manager/items/${string}/tracks`
+                              ? {
+                                    albumId: string;
+                                    total: number;
+                                    items: (NativeRecord & {
+                                        artists: string[];
+                                        discNumber: number | null;
+                                        trackNumber: number | null;
+                                        managed: boolean;
+                                    })[];
+                                }
+                              : P extends `manager/items/${string}/images/${string}` | "manager/images/cache"
+                                ? ImageDecision
+                                : P extends `manager/items/${string}`
+                                  ? ManagerDetails
+                                  : P extends "manager/compare"
+                                    ? Comparison
+                                    : P extends "apply"
                                       ? {
-                                            items: Record<string, NativeRecord | null>;
-                                            rules: Record<string, NativeRecord | null>;
-                                            paths: Record<string, NativeRecord | null>;
+                                            queued: number;
                                         }
-                                      : P extends "manager/errors/acknowledge"
+                                      : P extends `manager/navigation?${string}`
                                         ? {
-                                              acknowledged: string[];
+                                              items: Record<string, NativeRecord | null>;
+                                              rules: Record<string, NativeRecord | null>;
+                                              paths: Record<string, NativeRecord | null>;
                                           }
-                                        : unknown;
+                                        : P extends "manager/errors/acknowledge"
+                                          ? {
+                                                acknowledged: string[];
+                                            }
+                                          : unknown;
 export interface IdentityPreview {
     id: string;
     name: string;
@@ -191,7 +193,7 @@ export interface MetadataPreview {
     before: Record<string, JsonValue>;
     after: Record<string, JsonValue>;
     images: Record<string, ImageDecision>;
-    storedImages: Record<string, string[]>;
+    storedImages: Record<string, { path: string; hash: string | null }[]>;
     locks: string[];
 }
 export interface RestorationPreview {
@@ -316,5 +318,5 @@ export interface CleanupPreview {
     id: string;
     name: string;
     dependencies: Dependencies;
-    files: string[];
+    files: { path: string; hash: string }[];
 }

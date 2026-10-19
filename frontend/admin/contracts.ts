@@ -17,14 +17,14 @@ export interface JournalRecord {
 }
 export interface Journal {
     identityNames: Record<string, string>;
-    metadata: Record<string, ManagedRecord>;
+    records: Record<string, ManagedRecord>;
+    pending: Record<string, boolean>;
+    cleanupPending: Record<string, { fingerprint: string; recoveryPath?: string | null }>;
     history: HistoryEntry[];
     restores: Record<string, RestoreValues>;
     deletedRecords: Record<string, string>;
     reports: ApplicationReport[];
     schemaVersion: 1;
-    items: Record<string, JournalRecord>;
-    refreshPending: string[];
 }
 export interface Change {
     metadataEdits: MetadataPolicy[];
@@ -254,12 +254,14 @@ export interface RefreshWork {
 }
 export interface Fields {
     decisions?: Record<string, FieldDecision>;
-    title?: string | null;
-    album?: string | null;
-    artists?: string[] | null;
-    albumArtists?: string[] | null;
-    discNumber?: number | null;
-    trackNumber?: number | null;
+}
+export interface FieldDefinition {
+    name: string;
+    kind: "text" | "names" | "number" | "date" | "map" | "boolean";
+    required: boolean;
+    core: boolean;
+    advanced: boolean;
+    targets: string[];
 }
 export interface Rule {
     metadata?: MetadataPolicy | null;

@@ -1,8 +1,8 @@
 using System.Text.Json;
 using MusicMetadataManager;
 using Xunit;
-namespace MusicMetadataManager.Tests;
 
+namespace MusicMetadataManager.Tests;
 public sealed class PersistenceAndQueueTests
 {
     [Fact]
@@ -11,19 +11,50 @@ public sealed class PersistenceAndQueueTests
         var directory = Path.Combine(Path.GetTempPath(), "manager-journal-" + Guid.NewGuid());
         try
         {
-            var store = new JsonJournalStore(new PluginStorage(directory));
+            var store = new JsonStateStore(new PluginStorage(directory));
             var id = Guid.NewGuid();
-            var journal = new Journal { RefreshPending = [id], Items = new() { [id] = new() { Id = id, Original = new() { ["title"] = JsonSerializer.SerializeToElement("原曲") }, Applied = new() { ["title"] = JsonSerializer.SerializeToElement("Reviewed") } } } };
+            var journal = new PluginState
+            {
+                Journal = new Journal
+                {
+                    Pending = new()
+                    {
+                        {
+                            id,
+                            true
+                        }
+                    },
+                    Records = new()
+                    {
+                        [id] = new()
+                        {
+                            Id = id,
+                            Original = new()
+                            {
+                                ["title"] = JsonSerializer.SerializeToElement("原曲")
+                            },
+                            Applied = new()
+                            {
+                                ["title"] = JsonSerializer.SerializeToElement("Reviewed")
+                            }
+                        }
+                    }
+                }
+            };
             store.Save(journal);
             var reloaded = store.Load();
             Assert.Equal(Codec.Hash(journal), Codec.Hash(reloaded));
-            Assert.Equal("原曲", reloaded.Items[id].Original["title"].GetString());
+            Assert.Equal("原曲", reloaded.Journal.Records[id].Original["title"].GetString());
             Directory.CreateDirectory(Path.Combine(directory, "state.json.tmp"));
             var failure = Xunit.Record.Exception(() => store.Save(new()));
             Assert.True(failure is IOException or UnauthorizedAccessException);
             Assert.Equal(Codec.Hash(journal), Codec.Hash(store.Load()));
         }
-        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
     }
 
     [Theory]
@@ -37,27 +68,30 @@ public sealed class PersistenceAndQueueTests
         {
             Directory.CreateDirectory(directory);
             var file = Path.Combine(directory, "state.json");
-            var invalid = JsonSerializer.Serialize(new Journal { SchemaVersion = version }, Codec.Json);
+            var invalid = JsonSerializer.Serialize(new PluginState { SchemaVersion = version }, Codec.Json);
             File.WriteAllText(file, invalid);
-            var store = new JsonJournalStore(new PluginStorage(directory));
+            var store = new JsonStateStore(new PluginStorage(directory));
             Assert.Throws<InvalidDataException>(() => store.Load());
             Assert.Equal(invalid, File.ReadAllText(file));
-            Assert.Throws<InvalidDataException>(() => store.Save(new Journal { SchemaVersion = version }));
+            Assert.Throws<InvalidDataException>(() => store.Save(new PluginState { SchemaVersion = version }));
             Assert.Equal(invalid, File.ReadAllText(file));
         }
-        finally { Directory.Delete(directory, true); }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [Fact]
     public void JournalRequiresCurrentFormatAndReportsInsteadOfConvertingOldErrors()
     {
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Journal>("{}", Codec.Json));
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Journal>("{\"schemaVersion\":1,\"errors\":[],\"acknowledgedErrors\":[]}", Codec.Json));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<PluginState>("{}", Codec.Json));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<PluginState>("{\"schemaVersion\":1,\"errors\":[],\"acknowledgedErrors\":[]}", Codec.Json));
         var directory = Path.Combine(Path.GetTempPath(), "manager-fresh-" + Guid.NewGuid());
         Assert.False(Directory.Exists(directory));
-        var journal = new JsonJournalStore(new PluginStorage(directory)).Load();
+        var journal = new JsonStateStore(new PluginStorage(directory)).Load();
         Assert.Equal(1, journal.SchemaVersion);
-        Assert.Empty(journal.Reports);
+        Assert.Empty(journal.Journal.Reports);
         Assert.False(Directory.Exists(directory));
     }
 
@@ -66,7 +100,9 @@ public sealed class PersistenceAndQueueTests
     {
         var queue = new RefreshQueue();
         var id = Guid.NewGuid();
-        queue.Enqueue(id, false); queue.Enqueue(id, true); queue.Enqueue(id, false);
+        queue.Enqueue(id, false);
+        queue.Enqueue(id, true);
+        queue.Enqueue(id, false);
         Assert.Equal(1, queue.Count());
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         cancellation.CancelAfter(TimeSpan.FromSeconds(5));

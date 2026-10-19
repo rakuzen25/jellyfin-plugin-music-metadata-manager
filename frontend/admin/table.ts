@@ -1,4 +1,8 @@
-import type { Features } from "./features.ts";
+import type { ControllerContracts } from "./controllerContracts.ts";
+export interface TableDependencies {
+    api: Pick<ControllerContracts["api"], "esc" | "page" | "q">;
+    navigation: Pick<ControllerContracts["navigation"], "nativeButton">;
+}
 type Column = [label: string, key: "name" | "type" | "status" | "actions"];
 interface Pagination {
     count: string;
@@ -29,7 +33,7 @@ interface TableRowOptions {
     actions?: string;
     columns?: Column[];
 }
-export function createTable(features: Features) {
+export function createTable(ports: TableDependencies) {
     // Shared presentation for the three inventory/management tables. Selection and
     // mutation state remain owned by their existing destination controllers.
     const tablePageSize = 12;
@@ -52,11 +56,11 @@ export function createTable(features: Features) {
     ];
     function mountTable(id: string, { name, selectable = false, bodies, emptyId, pagination, columns = defaultTableColumns }: TableOptions) {
         const visibleColumns: [string, string][] = [...(selectable ? [["Select", "select"] as [string, string]] : []), ...columns];
-        features.api.q(id).innerHTML =
+        ports.api.q(id).innerHTML =
             '<table class="mmo-data-table' +
             (selectable ? " mmo-table-selectable" : "") +
             '" role="table" aria-label="' +
-            features.api.esc(name) +
+            ports.api.esc(name) +
             '"><colgroup>' +
             visibleColumns.map(([, key]) => '<col class="mmo-col-' + key + '" />').join("") +
             '</colgroup><thead role="rowgroup"><tr role="row">' +
@@ -83,10 +87,10 @@ export function createTable(features: Features) {
             '</table><div class="mmo-table-footer"><p id="' +
             pagination.count +
             '" role="status"></p><nav class="mmo-actions mmo-pagination" aria-label="' +
-            features.api.esc(name) +
+            ports.api.esc(name) +
             ' pages">' +
-            features.navigation.nativeButton("Previous", 'id="' + pagination.previous + '" disabled') +
-            features.navigation.nativeButton("Next", 'id="' + pagination.next + '" disabled') +
+            ports.navigation.nativeButton("Previous", 'id="' + pagination.previous + '" disabled') +
+            ports.navigation.nativeButton("Next", 'id="' + pagination.next + '" disabled') +
             "</nav></div>";
     }
     function tableMessage(text: string, selectable = false, columnCount = 4) {
@@ -94,7 +98,7 @@ export function createTable(features: Features) {
             '<tr class="mmo-table-message" role="row"><td role="cell" colspan="' +
             (columnCount + (selectable ? 1 : 0)) +
             '"><p role="status">' +
-            features.api.esc(text) +
+            ports.api.esc(text) +
             "</p></td></tr>"
         );
     }
@@ -112,27 +116,25 @@ export function createTable(features: Features) {
         actions = "",
         columns = defaultTableColumns,
     }: TableRowOptions) {
-        const menuActions = actions + (details ? features.navigation.nativeButton("Show details", "data-table-details") : "");
+        const menuActions = actions + (details ? ports.navigation.nativeButton("Show details", "data-table-details") : "");
         const cells = {
             name:
                 "<strong>" +
-                features.api.esc(name) +
+                ports.api.esc(name) +
                 "</strong>" +
-                (description ? '<p class="secondaryText mmo-row-description">' + features.api.esc(description) + "</p>" : "") +
-                (details
-                    ? "<details data-table-details-panel><summary>" + features.api.esc(detailLabel) + "</summary>" + details + "</details>"
-                    : ""),
-            type: features.api.esc(type),
-            status: '<span class="mmo-status-badge">' + features.api.esc(status) + "</span>",
+                (description ? '<p class="secondaryText mmo-row-description">' + ports.api.esc(description) + "</p>" : "") +
+                (details ? "<details data-table-details-panel><summary>" + ports.api.esc(detailLabel) + "</summary>" + details + "</details>" : ""),
+            type: ports.api.esc(type),
+            status: '<span class="mmo-status-badge">' + ports.api.esc(status) + "</span>",
             actions:
                 '<div class="mmo-row-actions">' +
                 primary +
                 native +
                 (menuActions
-                    ? features.navigation.nativeButton(
+                    ? ports.navigation.nativeButton(
                           "⋮",
                           'data-actions-open aria-label="Actions for ' +
-                              features.api.esc(name) +
+                              ports.api.esc(name) +
                               '" title="Actions" aria-haspopup="true" aria-expanded="false"',
                       ) +
                       "<div data-row-actions hidden>" +
@@ -152,7 +154,7 @@ export function createTable(features: Features) {
                         '<td class="' +
                         (key === "name" ? "mmo-row-main" : "") +
                         '" role="cell" data-label="' +
-                        features.api.esc(label) +
+                        ports.api.esc(label) +
                         '">' +
                         cells[key] +
                         "</td>",
@@ -166,7 +168,7 @@ export function createTable(features: Features) {
             '<label class="emby-checkbox-label mmo-row-select"><input is="emby-checkbox" type="checkbox" ' +
             attribute +
             ' aria-label="Select ' +
-            features.api.esc(name) +
+            ports.api.esc(name) +
             '" ' +
             (checked ? "checked " : "") +
             (disabled ? "disabled" : "") +
@@ -174,14 +176,14 @@ export function createTable(features: Features) {
         );
     }
     function tablePagination(start: number, total: number, { count, previous, next, noun = "results", note = "" }: Pagination) {
-        features.api.q(count).textContent =
+        ports.api.q(count).textContent =
             total +
             " " +
             noun +
             (total ? " · Showing " + (start + 1) + "–" + Math.min(start + tablePageSize, total) : "") +
             (note ? " · " + note : "");
-        features.api.q<HTMLButtonElement>(previous).disabled = start === 0;
-        features.api.q<HTMLButtonElement>(next).disabled = start + tablePageSize >= total;
+        ports.api.q<HTMLButtonElement>(previous).disabled = start === 0;
+        ports.api.q<HTMLButtonElement>(next).disabled = start + tablePageSize >= total;
     }
     return {
         initialize() {
@@ -217,7 +219,7 @@ export function createTable(features: Features) {
                     next: "mmoIssuesNext",
                 },
             });
-            features.api.page.addEventListener("click", (event) => {
+            ports.api.page.addEventListener("click", (event) => {
                 const button = (event.target as HTMLElement).closest<HTMLElement>("[data-table-details]");
                 if (!button) return;
                 const details = button.closest<HTMLElement>(".mmo-row")!.querySelector<HTMLDetailsElement>("[data-table-details-panel]")!;

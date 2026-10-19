@@ -22,7 +22,7 @@ class ConsumerTests(unittest.TestCase):
         )
         self.assertFalse(context.config["distribution"]["web"])
         self.assertEqual(
-            {"Core", "Infrastructure", "Host"},
+            {"Core", "Application", "Infrastructure", "Host"},
             set(context.config["backend"]["projects"]),
         )
         check_projects(context.root)
@@ -46,7 +46,7 @@ class ConsumerTests(unittest.TestCase):
             "web/config.html",
         ]:
             with self.subTest(path=path):
-                classification(path, context.root)
+                classification(context, path)
 
     def test_git_inventory_does_not_track_execution_reports(self):
         import subprocess

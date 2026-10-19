@@ -1,30 +1,27 @@
 import type { MetadataPolicy, ArtistIdentity, Rule } from "./contracts.ts";
-import type { Editor, LocalEdit, NavigationState } from "./state.ts";
-import type { Features } from "./features.ts";
-export function createNavigation(features: Features) {
+import type { Editor, LocalEdit } from "./state.ts";
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface NavigationDependencies {
+    rules: Pick<ControllerContracts["rules"], "edit" | "formRule" | "invalidateReview" | "labels" | "load" | "status">;
+    api: Pick<ControllerContracts["api"], "api" | "esc" | "page" | "q">;
+    managerUi: Pick<ControllerContracts["managerUi"], "managerOpen" | "readManagerFields" | "selectItemTab" | "setEditorWritable" | "setFieldState">;
+    identities: Pick<ControllerContracts["identities"], "editIdentity" | "identityForm">;
+    notifications: Pick<ControllerContracts["notifications"], "notifications">;
+    issueGuidance: Pick<
+        ControllerContracts["issueGuidance"],
+        "checkIssueResolution" | "focusIssueEditor" | "openIssuePanel" | "renderIssueResults" | "resetIssueEditor" | "stopIssueVerification"
+    >;
+    rowMenu: Pick<ControllerContracts["rowMenu"], "closeRowMenu">;
+    issues: Pick<ControllerContracts["issues"], "refreshIssues">;
+    changes: Pick<ControllerContracts["changes"], "renderChanges">;
+    nativeLinks: Pick<ControllerContracts["nativeLinks"], "nativeLink">;
+}
+export function createNavigation(ports: NavigationDependencies, session: DashboardState) {
     // Visit-local state. No draft or configuration is written by navigation.
-    const ui: NavigationState = {
-        view: "library",
-        screen: "list",
-        editor: null,
-        itemTab: "metadata",
-        locals: new Map(),
-        stack: [],
-        scroll: new Map(),
-        request: 0,
-        inventoryRequest: 0,
-        issueRequest: 0,
-        reviewOrigin: null,
-        previewChange: null,
-        previewRevision: null,
-        pinUrls: new Map(),
-        issueLoaded: false,
-        comparisonRequest: 0,
-        listFocus: null,
-        pendingSaves: new Set(),
-    };
+
     const humanLabels: Record<string, string> = {
-        ...features.rules.labels,
+        ...ports.rules.labels,
         sortName: "Sort name",
         overview: "Biography / overview",
         genres: "Genres",
@@ -47,7 +44,7 @@ export function createNavigation(features: Features) {
             'emby-button" ' +
             attributes +
             ">" +
-            features.api.esc(text) +
+            ports.api.esc(text) +
             "</button>"
         );
     }
@@ -61,31 +58,34 @@ export function createNavigation(features: Features) {
     }
     function updateLocalCount() {
         const saved =
-            (features.api.doc?.drafts?.length || 0) + (features.api.doc?.identityDrafts?.length || 0) + (features.api.doc?.policyDrafts?.length || 0);
-        features.api.q("mmoChangesBadge").textContent = [saved ? saved + " saved" : "", ui.locals.size ? ui.locals.size + " unfinished" : ""]
+            (session.api.doc?.drafts?.length || 0) + (session.api.doc?.identityDrafts?.length || 0) + (session.api.doc?.policyDrafts?.length || 0);
+        ports.api.q("mmoChangesBadge").textContent = [
+            saved ? saved + " saved" : "",
+            session.navigation.ui.locals.size ? session.navigation.ui.locals.size + " unfinished" : "",
+        ]
             .filter(Boolean)
             .join(" · ");
-        features.api.q("mmoLocalSection").hidden = !ui.locals.size;
-        features.api.q("mmoLocalEdits").innerHTML = [...ui.locals]
+        ports.api.q("mmoLocalSection").hidden = !session.navigation.ui.locals.size;
+        ports.api.q("mmoLocalEdits").innerHTML = [...session.navigation.ui.locals]
             .map(
                 ([key, entry]) =>
                     '<div class="mmo-row"><div class="mmo-row-main"><strong>' +
-                    features.api.esc(entry.name) +
+                    ports.api.esc(entry.name) +
                     '</strong><p class="secondaryText">Unfinished ' +
-                    features.api.esc(entry.type) +
+                    ports.api.esc(entry.type) +
                     " edit · not saved" +
                     (entry.baselineChanged ? " · active baseline changed; preview again" : "") +
                     '</p></div><div class="mmo-row-actions">' +
-                    nativeButton("Resume", 'data-local-resume="' + features.api.esc(key) + '"') +
-                    nativeButton("Discard", 'data-local-discard="' + features.api.esc(key) + '"') +
+                    nativeButton("Resume", 'data-local-resume="' + ports.api.esc(key) + '"') +
+                    nativeButton("Discard", 'data-local-discard="' + ports.api.esc(key) + '"') +
                     "</div></div>",
             )
             .join("");
         renderBatch();
     }
     function rawFields() {
-        return features.managerUi.managerDetails
-            ? [...features.api.q("mmoManagerFields").querySelectorAll<HTMLElement>("[data-field]")].map((row) => ({
+        return session.managerUi.managerDetails
+            ? [...ports.api.q("mmoManagerFields").querySelectorAll<HTMLElement>("[data-field]")].map((row) => ({
                   field: row.dataset.field!,
                   mode: row.querySelector<HTMLSelectElement>("[data-mode]")!.value,
                   value: row.querySelector<HTMLInputElement>("[data-value]")!.value,
@@ -93,91 +93,91 @@ export function createNavigation(features: Features) {
             : [];
     }
     function captureEditor() {
-        const e = ui.editor;
-        if (!e || ui.screen !== "workspace" || !e.dirty) return;
+        const e = session.navigation.ui.editor;
+        if (!e || session.navigation.ui.screen !== "workspace" || !e.dirty) return;
         let data, raw;
         if (e.type === "metadata") {
             try {
-                data = features.managerUi.readManagerFields();
+                data = ports.managerUi.readManagerFields();
             } catch {
-                data = structuredClone(features.managerUi.managerPolicy);
+                data = structuredClone(session.managerUi.managerPolicy);
             }
             raw = rawFields();
-        } else if (e.type === "identity") data = features.identities.identityForm();
-        else data = features.rules.formRule();
-        ui.locals.set(e.key, {
+        } else if (e.type === "identity") data = ports.identities.identityForm();
+        else data = ports.rules.formRule();
+        session.navigation.ui.locals.set(e.key, {
             ...e,
-            baselineChanged: e.baselineChanged || ui.locals.get(e.key)?.baselineChanged || false,
+            baselineChanged: e.baselineChanged || session.navigation.ui.locals.get(e.key)?.baselineChanged || false,
             data: structuredClone(data),
             raw,
-            tab: ui.itemTab,
-            comparison: e.type === "metadata" ? features.managerUi.managerComparison : null,
+            tab: session.navigation.ui.itemTab,
+            comparison: e.type === "metadata" ? session.managerUi.managerComparison : null,
         });
         updateLocalCount();
     }
     function markDirty() {
-        if (!ui.editor) return;
-        features.rules.invalidateReview();
-        ui.editor.dirty = true;
-        ui.editor.sequence = (ui.editor.sequence || 0) + 1;
-        features.api.q("mmoWorkspaceState").textContent = "Unfinished local edit · save a draft to keep it after reloading";
+        if (!session.navigation.ui.editor) return;
+        ports.rules.invalidateReview();
+        session.navigation.ui.editor.dirty = true;
+        session.navigation.ui.editor.sequence = (session.navigation.ui.editor.sequence || 0) + 1;
+        ports.api.q("mmoWorkspaceState").textContent = "Unfinished local edit · save a draft to keep it after reloading";
         captureEditor();
         syncBatchButton();
     }
-    function clearLocal(key = ui.editor?.key) {
-        if (key) ui.locals.delete(key);
-        if (ui.editor?.key === key) ui.editor!.dirty = false;
+    function clearLocal(key = session.navigation.ui.editor?.key) {
+        if (key) session.navigation.ui.locals.delete(key);
+        if (session.navigation.ui.editor?.key === key) session.navigation.ui.editor!.dirty = false;
         updateLocalCount();
     }
     function displayScreen(screen: string) {
-        features.notifications.notifications.clear();
-        features.issueGuidance.stopIssueVerification();
-        ui.screen = screen;
-        features.api.q("mmoIssuePanel").hidden = screen !== "issue";
-        features.api.q("mmoMain").hidden = screen !== "list";
-        features.api.q("mmoNavigation").hidden = screen !== "list";
-        features.api.q("mmoWorkspace").hidden = screen !== "workspace";
-        features.api.q("mmoPreviewArea").hidden = screen !== "review";
+        ports.notifications.notifications.clear();
+        ports.issueGuidance.stopIssueVerification();
+        session.navigation.ui.screen = screen;
+        ports.api.q("mmoIssuePanel").hidden = screen !== "issue";
+        ports.api.q("mmoMain").hidden = screen !== "list";
+        ports.api.q("mmoNavigation").hidden = screen !== "list";
+        ports.api.q("mmoWorkspace").hidden = screen !== "workspace";
+        ports.api.q("mmoPreviewArea").hidden = screen !== "review";
     }
     async function showDestination(view: string, capture = true, restoreFocus = false) {
-        features.notifications.notifications.clear();
-        features.rowMenu.closeRowMenu();
+        ports.notifications.notifications.clear();
+        ports.rowMenu.closeRowMenu();
         if (capture) captureEditor();
-        if (ui.screen === "list") ui.scroll.set(ui.view, window.scrollY);
-        features.rules.invalidateReview();
-        ui.view = view;
-        ui.editor = null;
-        ui.stack = [];
-        ui.request++;
+        if (session.navigation.ui.screen === "list") session.navigation.ui.scroll.set(session.navigation.ui.view, window.scrollY);
+        ports.rules.invalidateReview();
+        session.navigation.ui.view = view;
+        session.navigation.ui.editor = null;
+        session.navigation.ui.stack = [];
+        session.navigation.ui.request++;
         displayScreen("list");
-        features.api.page.querySelectorAll<HTMLElement>("[data-destination]").forEach((el) => (el.hidden = el.dataset.destination !== view));
-        features.api
+        ports.api.page.querySelectorAll<HTMLElement>("[data-destination]").forEach((el) => (el.hidden = el.dataset.destination !== view));
+        ports.api
             .q("mmoNavigation")
             .querySelectorAll<HTMLElement>("[data-view]")
             .forEach((el) => (el.dataset.view === view ? el.setAttribute("aria-current", "page") : el.removeAttribute("aria-current")));
         if (view === "issues") {
-            if (!ui.issueLoaded) await features.issues.refreshIssues();
-            features.issueGuidance.renderIssueResults();
-            if (features.issueGuidance.issueVerification) void features.issueGuidance.checkIssueResolution();
+            if (!session.navigation.ui.issueLoaded) await ports.issues.refreshIssues();
+            ports.issueGuidance.renderIssueResults();
+            if (session.issueGuidance.issueVerification) void ports.issueGuidance.checkIssueResolution();
         }
-        if (view === "tools") await features.rules.status();
+        if (view === "tools") await ports.rules.status();
         if (view === "rules") {
-            features.changes.renderChanges();
+            ports.changes.renderChanges();
             updateLocalCount();
         }
-        window.scrollTo(0, ui.scroll.get(view) || 0);
-        if (restoreFocus && ui.listFocus?.view === view) {
-            const ref = ui.listFocus;
-            const element = ref.element?.isConnected ? ref.element : ref.selector ? features.api.page.querySelector<HTMLElement>(ref.selector) : null;
+        window.scrollTo(0, session.navigation.ui.scroll.get(view) || 0);
+        if (restoreFocus && session.navigation.ui.listFocus?.view === view) {
+            const ref = session.navigation.ui.listFocus;
+            const element = ref.element?.isConnected ? ref.element : ref.selector ? ports.api.page.querySelector<HTMLElement>(ref.selector) : null;
             element?.focus({ preventScroll: true });
         }
     }
     function openWorkspace(type: Editor["type"], key: string, name: string, state: string | null, itemId: string | null | undefined, nested = false) {
-        if (ui.screen === "workspace" && nested && ui.editor) {
+        if (session.navigation.ui.screen === "workspace" && nested && session.navigation.ui.editor) {
             captureEditor();
-            ui.stack.push({ ...ui.editor, tab: ui.itemTab, scroll: window.scrollY });
-        } else if (ui.screen === "list") {
-            ui.scroll.set(ui.view, window.scrollY);
+            session.navigation.ui.stack.push({ ...session.navigation.ui.editor, tab: session.navigation.ui.itemTab, scroll: window.scrollY });
+        } else if (session.navigation.ui.screen === "list") {
+            session.navigation.ui.scroll.set(session.navigation.ui.view, window.scrollY);
             const element = document.activeElement as HTMLElement | null;
             let selector;
             if (element?.id) selector = "#" + CSS.escape(element.id);
@@ -191,95 +191,102 @@ export function createNavigation(features: Features) {
             if (element?.dataset.action)
                 selector = '[data-action="' + element.dataset.action + '"][data-id="' + CSS.escape(element.dataset.id!) + '"]';
             if (element?.dataset.issueOpen) selector = '[data-issue-open="' + CSS.escape(element.dataset.issueOpen) + '"]';
-            ui.listFocus = { view: ui.view, element, selector };
+            session.navigation.ui.listFocus = { view: session.navigation.ui.view, element, selector };
         }
         displayScreen("workspace");
-        features.issueGuidance.resetIssueEditor();
-        features.api.q("mmoRepairControls").hidden = true;
-        ui.editor = { type, key, name, itemId, dirty: false, sequence: 0 };
-        features.api.q("mmoWorkspaceTitle").textContent = name;
-        features.api.q("mmoWorkspaceState").textContent = state;
-        features.api.q("mmoWorkspaceNative").innerHTML = features.nativeLinks.nativeLink(itemId, name, false);
-        features.api.q("mmoManagerEditor").hidden = type !== "metadata";
-        features.api.q("mmoForm").hidden = type !== "rule";
-        features.api.q("mmoIdentityForm").hidden = type !== "identity";
-        features.api.q("mmoItemThumbnail").hidden = !itemId;
-        if (itemId) features.api.q("mmoItemThumbnail").src = nativeImage(itemId);
-        features.api.q("mmoWorkspaceTabs").hidden = type !== "metadata";
-        features.api.q("mmoWorkspaceBack").textContent =
-            "← Back to " + (ui.stack.length ? ui.stack.at(-1)!.name : ui.view.charAt(0).toUpperCase() + ui.view.slice(1));
+        ports.issueGuidance.resetIssueEditor();
+        ports.api.q("mmoRepairControls").hidden = true;
+        session.navigation.ui.editor = { type, key, name, itemId, dirty: false, sequence: 0 };
+        ports.api.q("mmoWorkspaceTitle").textContent = name;
+        ports.api.q("mmoWorkspaceState").textContent = state;
+        ports.api.q("mmoWorkspaceNative").innerHTML = ports.nativeLinks.nativeLink(itemId, name, false);
+        ports.api.q("mmoManagerEditor").hidden = type !== "metadata";
+        ports.api.q("mmoForm").hidden = type !== "rule";
+        ports.api.q("mmoIdentityForm").hidden = type !== "identity";
+        ports.api.q("mmoItemThumbnail").hidden = !itemId;
+        if (itemId) ports.api.q("mmoItemThumbnail").src = nativeImage(itemId);
+        ports.api.q("mmoWorkspaceTabs").hidden = type !== "metadata";
+        ports.api.q("mmoWorkspaceBack").textContent =
+            "← Back to " +
+            (session.navigation.ui.stack.length
+                ? session.navigation.ui.stack.at(-1)!.name
+                : session.navigation.ui.view.charAt(0).toUpperCase() + session.navigation.ui.view.slice(1));
         window.scrollTo(0, 0);
-        features.api.q("mmoWorkspaceTitle").focus({ preventScroll: true });
+        ports.api.q("mmoWorkspaceTitle").focus({ preventScroll: true });
     }
     async function resumeEntry(entry: Editor & Partial<LocalEdit>, nested = false) {
-        if (entry.type === "metadata") await features.managerUi.managerOpen(entry.itemId!, entry.data as MetadataPolicy | undefined, nested);
-        else if (entry.type === "identity") await features.identities.editIdentity(entry.data as ArtistIdentity | undefined, nested);
-        else features.rules.edit(entry.data as Rule | undefined, nested);
+        if (entry.type === "metadata") await ports.managerUi.managerOpen(entry.itemId!, entry.data as MetadataPolicy | undefined, nested);
+        else if (entry.type === "identity") await ports.identities.editIdentity(entry.data as ArtistIdentity | undefined, nested);
+        else ports.rules.edit(entry.data as Rule | undefined, nested);
         if (entry.type === "metadata" && entry.raw)
             for (const value of entry.raw) {
-                const row = features.api.q("mmoManagerFields").querySelector<HTMLElement>('[data-field="' + value.field + '"]');
+                const row = ports.api.q("mmoManagerFields").querySelector<HTMLElement>('[data-field="' + value.field + '"]');
                 if (row) {
                     row.querySelector<HTMLInputElement>("[data-value]")!.value = value.value;
                     row.querySelector<HTMLSelectElement>("[data-mode]")!.value = value.mode;
-                    features.managerUi.setFieldState(row);
+                    ports.managerUi.setFieldState(row);
                 }
             }
-        if (ui.editor) {
-            ui.editor.dirty = !!entry.dirty;
-            ui.editor.sequence = entry.sequence || 0;
-            ui.editor.baselineChanged = !!entry.baselineChanged;
+        if (session.navigation.ui.editor) {
+            session.navigation.ui.editor.dirty = !!entry.dirty;
+            session.navigation.ui.editor.sequence = entry.sequence || 0;
+            session.navigation.ui.editor.baselineChanged = !!entry.baselineChanged;
         }
-        if (entry.type === "metadata") await features.managerUi.selectItemTab(entry.tab || "metadata");
-        if (entry.issueRepair && ui.editor)
-            features.issueGuidance.focusIssueEditor(
+        if (entry.type === "metadata") await ports.managerUi.selectItemTab(entry.tab || "metadata");
+        if (entry.issueRepair && session.navigation.ui.editor)
+            ports.issueGuidance.focusIssueEditor(
                 entry.issueRepair.issue,
-                entry.issueRepair.guided && !!features.issues.repairQueue,
+                entry.issueRepair.guided && !!session.issues.repairQueue,
                 entry.issueRepair.choice,
                 entry.issueRepair.full,
             );
-        if (entry.baselineChanged) features.api.q("mmoWorkspaceState").textContent += " · active baseline changed; preview again";
+        if (entry.baselineChanged) ports.api.q("mmoWorkspaceState").textContent += " · active baseline changed; preview again";
     }
     async function workspaceBack() {
         captureEditor();
-        features.rules.invalidateReview();
-        ui.request++;
-        if (ui.stack.length) {
-            const entry = ui.stack.pop();
+        ports.rules.invalidateReview();
+        session.navigation.ui.request++;
+        if (session.navigation.ui.stack.length) {
+            const entry = session.navigation.ui.stack.pop();
             await resumeEntry(entry!);
             window.scrollTo(0, entry!.scroll || 0);
-        } else if (features.issueGuidance.issueEditor && ui.editor && features.issueGuidance.issueEditor.key === ui.editor.key)
-            await features.issueGuidance.openIssuePanel(features.issueGuidance.issueEditor.issue, features.issueGuidance.issueEditor.guided);
-        else await showDestination(ui.view, false, true);
+        } else if (
+            session.issueGuidance.issueEditor &&
+            session.navigation.ui.editor &&
+            session.issueGuidance.issueEditor.key === session.navigation.ui.editor.key
+        )
+            await ports.issueGuidance.openIssuePanel(session.issueGuidance.issueEditor.issue, session.issueGuidance.issueEditor.guided);
+        else await showDestination(session.navigation.ui.view, false, true);
     }
     function syncBatchButton() {
-        if (ui.editor?.type !== "metadata" || !features.managerUi.managerPolicy || !features.managerUi.managerDetails) return;
-        const staged = features.managerUi.managerBatch.some(
-            (p) => p.id === features.managerUi.managerPolicy.id && JSON.stringify(p) === JSON.stringify(features.managerUi.managerPolicy),
+        if (session.navigation.ui.editor?.type !== "metadata" || !session.managerUi.managerPolicy || !session.managerUi.managerDetails) return;
+        const staged = session.managerUi.managerBatch.some(
+            (p) => p.id === session.managerUi.managerPolicy.id && JSON.stringify(p) === JSON.stringify(session.managerUi.managerPolicy),
         );
-        const button = features.api.q("mmoManagerBatchAdd");
+        const button = ports.api.q("mmoManagerBatchAdd");
         button.textContent = staged ? "Added to batch" : "Add to batch";
-        button.disabled = staged || !features.managerUi.managerDetails.dependencies.canEdit || !!features.managerUi.managerDetails.linkedOnly;
+        button.disabled = staged || !session.managerUi.managerDetails.dependencies.canEdit || !!session.managerUi.managerDetails.linkedOnly;
     }
     function renderBatch() {
         syncBatchButton();
-        features.api.q("mmoBatchSection").hidden = !features.managerUi.managerBatch.length;
-        features.api.q("mmoManagerBatchCount").textContent = features.managerUi.managerBatch.length + " edits staged for batch review";
-        features.api.q("mmoBatchRows").innerHTML = features.managerUi.managerBatch
+        ports.api.q("mmoBatchSection").hidden = !session.managerUi.managerBatch.length;
+        ports.api.q("mmoManagerBatchCount").textContent = session.managerUi.managerBatch.length + " edits staged for batch review";
+        ports.api.q("mmoBatchRows").innerHTML = session.managerUi.managerBatch
             .map(
                 (p) =>
                     '<div class="mmo-row"><div class="mmo-row-main">' +
-                    features.api.esc(p.label || p.itemId || p.identityId) +
+                    ports.api.esc(p.label || p.itemId || p.identityId) +
                     "</div>" +
-                    nativeButton("Remove", 'data-batch-remove="' + features.api.esc(p.id) + '"') +
+                    nativeButton("Remove", 'data-batch-remove="' + ports.api.esc(p.id) + '"') +
                     "</div>",
             )
             .join("");
     }
-    async function hydratePins(container = features.api.page) {
+    async function hydratePins(container = ports.api.page) {
         for (const img of container.querySelectorAll<HTMLImageElement>("img[data-pin-image]")) {
             const hash = img.dataset.pinImage!;
             try {
-                let pending = ui.pinUrls.get(hash);
+                let pending = session.navigation.ui.pinUrls.get(hash);
                 if (!pending) {
                     const headers = {};
                     ApiClient.setRequestHeaders(headers);
@@ -290,12 +297,12 @@ export function createNavigation(features: Features) {
                         if (!r.ok) throw Error("Cached artwork unavailable");
                         return URL.createObjectURL(await r.blob());
                     });
-                    ui.pinUrls.set(hash, pending);
+                    session.navigation.ui.pinUrls.set(hash, pending);
                 }
                 img.src = await pending;
             } catch {
                 img.hidden = true;
-                ui.pinUrls.delete(hash);
+                session.navigation.ui.pinUrls.delete(hash);
                 if (!img.parentElement!.querySelector<HTMLElement>("[data-pin-error]")) {
                     const error = document.createElement("p");
                     error.dataset.pinError = "true";
@@ -306,7 +313,7 @@ export function createNavigation(features: Features) {
             }
         }
     }
-    function normalizeControls(container = features.api.page) {
+    function normalizeControls(container = ports.api.page) {
         // Older correction/identity forms now use the same native widgets as the manager.
         for (const control of container.querySelectorAll<HTMLElement>("button,select,textarea,input")) {
             if (control.tagName === "BUTTON") {
@@ -327,21 +334,23 @@ export function createNavigation(features: Features) {
         }
     }
     async function saveLocalDraft(route: string, data: Rule | ArtistIdentity | MetadataPolicy, button: HTMLButtonElement) {
-        const message = features.notifications.notifications.scope();
-        const key = ui.editor!.key,
-            sequence = ui.editor!.sequence || 0;
-        if (ui.pendingSaves.has(key)) throw Error("A save for this edit is already pending.");
+        const message = ports.notifications.notifications.scope();
+        const key = session.navigation.ui.editor!.key,
+            sequence = session.navigation.ui.editor!.sequence || 0;
+        if (session.navigation.ui.pendingSaves.has(key)) throw Error("A save for this edit is already pending.");
         message("Saving draft…", "loading");
-        ui.pendingSaves.add(key);
+        session.navigation.ui.pendingSaves.add(key);
         button.disabled = true;
         try {
-            await features.api.api(route, "POST", data);
-            const local = ui.locals.get(key);
-            const newerEdits = (local && local.sequence !== sequence) || (ui.editor?.key === key && ui.editor.sequence !== sequence);
+            await ports.api.api(route, "POST", data);
+            const local = session.navigation.ui.locals.get(key);
+            const newerEdits =
+                (local && local.sequence !== sequence) ||
+                (session.navigation.ui.editor?.key === key && session.navigation.ui.editor.sequence !== sequence);
             if (!newerEdits) clearLocal(key);
-            const wasReview = ui.screen === "review";
-            features.rules.invalidateReview();
-            await features.rules.load();
+            const wasReview = session.navigation.ui.screen === "review";
+            ports.rules.invalidateReview();
+            await ports.rules.load();
             message(
                 newerEdits
                     ? "Draft saved; newer edits remain unsaved. The active version is unchanged."
@@ -350,15 +359,13 @@ export function createNavigation(features: Features) {
                       : "Draft saved. The active version remains unchanged. Newer local edits are retained.",
             );
         } finally {
-            ui.pendingSaves.delete(key);
-            if (ui.editor?.type === "metadata") features.managerUi.setEditorWritable();
+            session.navigation.ui.pendingSaves.delete(key);
+            if (session.navigation.ui.editor?.type === "metadata") ports.managerUi.setEditorWritable();
         }
     }
     return {
         initialize() {},
-        get ui() {
-            return ui;
-        },
+
         get humanLabels() {
             return humanLabels;
         },

@@ -1,24 +1,25 @@
 import { operationError } from "./errors.ts";
-import type { ActivationResult, Issue, IssueContext, IssueEvidence, IssueVerification, NativeRecord } from "./responses.ts";
+import type { ActivationResult, Issue, IssueContext, IssueEvidence, NativeRecord } from "./responses.ts";
 import type { ArtistIdentity } from "./contracts.ts";
-import type { Features } from "./features.ts";
-export function createIssueGuidance(features: Features) {
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface IssueGuidanceDependencies {
+    navigation: Pick<
+        ControllerContracts["navigation"],
+        "captureEditor" | "displayScreen" | "markDirty" | "nativeButton" | "normalizeControls" | "showDestination"
+    >;
+    api: Pick<ControllerContracts["api"], "api" | "esc" | "find" | "page" | "perform" | "q">;
+    nativeLinks: Pick<ControllerContracts["nativeLinks"], "issueNativeLink" | "nativeLink">;
+    rules: Pick<ControllerContracts["rules"], "edit" | "invalidateReview" | "preview">;
+    identities: Pick<ControllerContracts["identities"], "editIdentity">;
+    managerUi: Pick<ControllerContracts["managerUi"], "managerOpen">;
+    issues: Pick<ControllerContracts["issues"], "managerIssues" | "openRepairTask" | "renderIssues">;
+    actions: Pick<ControllerContracts["actions"], "actions">;
+    notifications: Pick<ControllerContracts["notifications"], "notifications">;
+}
+export function createIssueGuidance(ports: IssueGuidanceDependencies, session: DashboardState) {
     // Guidance is visit-local. Backend facts drive choices; choices never apply edits.
-    let issuePanelState: {
-        issue: Issue;
-        guided: boolean;
-        request: number;
-    } | null = null;
-    let issueEditor: {
-        issue: Issue;
-        guided: boolean;
-        choice: string;
-        full: boolean;
-        key: string;
-    } | null = null;
-    let issueVerification: IssueVerification | null = null;
-    let issueCheckTimer: ReturnType<typeof setTimeout> | null = null,
-        issueCheckSerial = 0;
+
     const issueTypeNames: Record<string, string> = {
         credit: "Unresolved credit",
         binding: "Broken binding",
@@ -37,8 +38,8 @@ export function createIssueGuidance(features: Features) {
     function issueChoice(label: string, choice: string, description = "") {
         return (
             '<div class="mmo-issue-choice">' +
-            features.navigation.nativeButton(label, 'data-issue-choice="' + choice + '"') +
-            (description ? '<p class="secondaryText">' + features.api.esc(description) + "</p>" : "") +
+            ports.navigation.nativeButton(label, 'data-issue-choice="' + choice + '"') +
+            (description ? '<p class="secondaryText">' + ports.api.esc(description) + "</p>" : "") +
             "</div>"
         );
     }
@@ -48,25 +49,25 @@ export function createIssueGuidance(features: Features) {
         const item = uses[0];
         let html = item
             ? '<section class="mmo-issue-example"><strong>' +
-              features.api.esc(item.name) +
+              ports.api.esc(item.name) +
               "</strong>" +
-              features.nativeLinks.nativeLink(item.id, item.name) +
+              ports.nativeLinks.nativeLink(item.id, item.name) +
               '<p class="secondaryText mmo-value">' +
-              features.api.esc(item.path) +
+              ports.api.esc(item.path) +
               "</p>" +
               (e.credit
-                  ? "<p>" + features.api.esc(e.role === "albumArtists" ? "Album artist" : "Performer") + ": " + features.api.esc(e.credit) + "</p>"
+                  ? "<p>" + ports.api.esc(e.role === "albumArtists" ? "Album artist" : "Performer") + ": " + ports.api.esc(e.credit) + "</p>"
                   : "") +
               "</section>"
             : "";
         if (issue.type === "repair")
             html +=
                 "<p>Stored name: <strong>" +
-                features.api.esc(issue.name) +
+                ports.api.esc(issue.name) +
                 "</strong><br>Metadata-folder name: <strong>" +
-                features.api.esc((e.path || "").split("/").filter(Boolean).at(-1)) +
+                ports.api.esc((e.path || "").split("/").filter(Boolean).at(-1)) +
                 '</strong></p><p class="secondaryText">A different name can be legitimate. Compare credits and source evidence before changing it.</p>';
-        if (issue.type === "binding") html += "<p>Missing: <strong>" + features.api.esc(e.missing!.join(", ")) + "</strong></p>";
+        if (issue.type === "binding") html += "<p>Missing: <strong>" + ports.api.esc(e.missing!.join(", ")) + "</strong></p>";
         if (uses.length > 1)
             html +=
                 "<details><summary>All affected items (" +
@@ -76,10 +77,10 @@ export function createIssueGuidance(features: Features) {
                     .map(
                         (u) =>
                             "<p>" +
-                            features.api.esc(u.name) +
-                            features.nativeLinks.nativeLink(u.id, u.name) +
+                            ports.api.esc(u.name) +
+                            ports.nativeLinks.nativeLink(u.id, u.name) +
                             '<br><span class="secondaryText mmo-value">' +
-                            features.api.esc(u.path) +
+                            ports.api.esc(u.path) +
                             "</span></p>",
                     )
                     .join("") +
@@ -111,31 +112,31 @@ export function createIssueGuidance(features: Features) {
     }
     async function openIssuePanel(issue: Issue | undefined, guided = false) {
         if (!issue) throw Error("This finding is no longer present. Refresh Issues.");
-        features.navigation.captureEditor();
-        features.rules.invalidateReview();
-        if (features.navigation.ui.screen === "list") {
-            features.navigation.ui.scroll.set("issues", window.scrollY);
-            features.navigation.ui.listFocus = {
+        ports.navigation.captureEditor();
+        ports.rules.invalidateReview();
+        if (session.navigation.ui.screen === "list") {
+            session.navigation.ui.scroll.set("issues", window.scrollY);
+            session.navigation.ui.listFocus = {
                 view: "issues",
                 element: document.activeElement as HTMLElement | null,
                 selector: '[data-issue-open="' + CSS.escape(issue.key) + '"]',
             };
         }
-        features.navigation.ui.request++;
+        session.navigation.ui.request++;
         resetIssueEditor();
-        features.navigation.ui.editor = null;
-        features.navigation.ui.stack = [];
-        features.navigation.ui.view = "issues";
-        issuePanelState = { issue, guided, request: features.navigation.ui.request };
-        features.navigation.displayScreen("issue");
-        features.api.q("mmoIssuePanelTitle").textContent = issue.name;
+        session.navigation.ui.editor = null;
+        session.navigation.ui.stack = [];
+        session.navigation.ui.view = "issues";
+        session.issueGuidance.issuePanelState = { issue, guided, request: session.navigation.ui.request };
+        ports.navigation.displayScreen("issue");
+        ports.api.q("mmoIssuePanelTitle").textContent = issue.name;
         const e = issue.guidance.evidence || {};
         let choices = "";
         const references = [...(e.items || []), ...(e.music || []), ...(e.nonMusic || []), ...(e.candidates || [])];
         const evidenceLinks = references.length
             ? "<details><summary>Related Jellyfin pages</summary>" +
               [...new Map(references.map((x) => [x.id, x])).values()]
-                  .map((x) => "<p>" + features.api.esc(x.name || x.id) + features.nativeLinks.nativeLink(x.id, x.name || "related item") + "</p>")
+                  .map((x) => "<p>" + ports.api.esc(x.name || x.id) + ports.nativeLinks.nativeLink(x.id, x.name || "related item") + "</p>")
                   .join("") +
               "</details>"
             : "";
@@ -167,9 +168,9 @@ export function createIssueGuidance(features: Features) {
                 choices += dependencyEvidence(e);
                 choices += issueChoice("Inspect record and dependencies", "inspect");
                 for (const id of e.bindings || [])
-                    choices += features.navigation.nativeButton("Inspect identity binding", 'data-issue-binding="' + features.api.esc(id) + '"');
+                    choices += ports.navigation.nativeButton("Inspect identity binding", 'data-issue-binding="' + ports.api.esc(id) + '"');
                 for (const id of e.policies || [])
-                    choices += features.navigation.nativeButton("Inspect managed policy", 'data-issue-policy="' + features.api.esc(id) + '"');
+                    choices += ports.navigation.nativeButton("Inspect managed policy", 'data-issue-policy="' + ports.api.esc(id) + '"');
                 break;
             case "unmatched":
                 choices +=
@@ -185,9 +186,7 @@ export function createIssueGuidance(features: Features) {
                 break;
             case "report":
                 choices +=
-                    '<details><summary>Original error</summary><p class="mmo-value">' +
-                    features.api.esc(e.message || issue.reason) +
-                    "</p></details>";
+                    '<details><summary>Original error</summary><p class="mmo-value">' + ports.api.esc(e.message || issue.reason) + "</p></details>";
                 if (issue.itemId) choices += issueChoice("Inspect affected item", "inspect");
                 if (["cleanup-review-stale", "cleanup-failure"].includes(issue.causeCode))
                     choices += issueChoice("Check current cleanup eligibility", "recheck");
@@ -202,7 +201,7 @@ export function createIssueGuidance(features: Features) {
             case "audit":
                 choices +=
                     '<details><summary>Inspection error</summary><p class="mmo-value">' +
-                    features.api.esc(issue.reason) +
+                    ports.api.esc(issue.reason) +
                     "</p></details>" +
                     (issue.causeCode === "inspection-access-denied"
                         ? "<p>Inspect filesystem permissions and library access, then check again.</p>"
@@ -213,45 +212,45 @@ export function createIssueGuidance(features: Features) {
                 choices += issueChoice("Check again", "recheck");
                 break;
         }
-        features.api.q("mmoIssuePanelBody").innerHTML =
+        ports.api.q("mmoIssuePanelBody").innerHTML =
             '<p class="secondaryText">' +
-            features.api.esc(issueTypeNames[issue.type]) +
+            ports.api.esc(issueTypeNames[issue.type]) +
             "</p><p>" +
-            features.api.esc(issue.guidance.summary) +
+            ports.api.esc(issue.guidance.summary) +
             "</p>" +
-            features.nativeLinks.issueNativeLink(issue, false) +
+            ports.nativeLinks.issueNativeLink(issue, false) +
             issueExample(issue) +
             evidenceLinks +
             '<div id="mmoIssueChoices">' +
             choices +
             '</div><div id="mmoIssueDecision" hidden></div><details><summary>Evidence and technical details</summary><p class="mmo-value">' +
-            features.api.esc(issue.guidance.path || "") +
+            ports.api.esc(issue.guidance.path || "") +
             "</p><pre>" +
-            features.api.esc(JSON.stringify({ cause: issue.causeCode, reason: issue.reason, evidence: e }, null, 2)) +
+            ports.api.esc(JSON.stringify({ cause: issue.causeCode, reason: issue.reason, evidence: e }, null, 2)) +
             "</pre></details>" +
             (guided
                 ? '<div class="mmo-actions">' +
-                  features.navigation.nativeButton("Skip this repair", 'data-issue-choice="skip"') +
-                  features.navigation.nativeButton("Return to Issues", 'data-issue-choice="return"') +
+                  ports.navigation.nativeButton("Skip this repair", 'data-issue-choice="skip"') +
+                  ports.navigation.nativeButton("Return to Issues", 'data-issue-choice="return"') +
                   "</div>"
                 : "");
-        features.navigation.normalizeControls(features.api.q("mmoIssuePanel"));
-        features.api.q("mmoIssuePanelTitle").focus({ preventScroll: true });
+        ports.navigation.normalizeControls(ports.api.q("mmoIssuePanel"));
+        ports.api.q("mmoIssuePanelTitle").focus({ preventScroll: true });
         window.scrollTo(0, 0);
     }
     function resetIssueEditor() {
-        for (const el of features.api.page.querySelectorAll<HTMLElement>("[data-issue-hidden]")) {
+        for (const el of ports.api.page.querySelectorAll<HTMLElement>("[data-issue-hidden]")) {
             el.hidden = false;
             delete el.dataset.issueHidden;
         }
-        features.api.q("mmoIssueEditorContext").hidden = true;
-        issueEditor = null;
+        ports.api.q("mmoIssueEditorContext").hidden = true;
+        session.issueGuidance.issueEditor = null;
     }
     function focusIssueEditor(issue: Issue, guided: boolean, choice: string, full = false) {
-        issueEditor = { issue, guided, choice, full, key: features.navigation.ui.editor!.key };
-        features.navigation.ui.editor!.issueRepair = issueEditor;
-        features.api.q("mmoIssueEditorContext").hidden = false;
-        features.api.q("mmoIssueEditorSummary").textContent =
+        session.issueGuidance.issueEditor = { issue, guided, choice, full, key: session.navigation.ui.editor!.key };
+        session.navigation.ui.editor!.issueRepair = session.issueGuidance.issueEditor;
+        ports.api.q("mmoIssueEditorContext").hidden = false;
+        ports.api.q("mmoIssueEditorSummary").textContent =
             issue.name +
             " · " +
             ({
@@ -269,35 +268,34 @@ export function createIssueGuidance(features: Features) {
             }
         };
         applyIssueFieldFocus();
-        if (!full && features.navigation.ui.editor!.type === "identity") {
-            for (const id of ["mmoIdentityArtists", "mmoIdentityPersons", "mmoIdentityMbid"]) hide(features.api.q(id).closest<HTMLElement>("label"));
-            for (const id of ["mmoLocalSuggestions", "mmoBrainzSuggestions", "mmoIdentitySuggestions"]) hide(features.api.q(id));
+        if (!full && session.navigation.ui.editor!.type === "identity") {
+            for (const id of ["mmoIdentityArtists", "mmoIdentityPersons", "mmoIdentityMbid"]) hide(ports.api.q(id).closest<HTMLElement>("label"));
+            for (const id of ["mmoLocalSuggestions", "mmoBrainzSuggestions", "mmoIdentitySuggestions"]) hide(ports.api.q(id));
         }
-        if (!full && features.navigation.ui.editor!.type === "rule" && choice === "rule") {
-            hide(features.api.q("mmoFieldsArea"));
-            hide(features.api.q("mmoAliasArea").querySelector<HTMLTextAreaElement>("textarea")?.closest<HTMLElement>("label"));
+        if (!full && session.navigation.ui.editor!.type === "rule" && choice === "rule") {
+            hide(ports.api.q("mmoFieldsArea"));
+            hide(ports.api.q("mmoAliasArea").querySelector<HTMLTextAreaElement>("textarea")?.closest<HTMLElement>("label"));
         }
-        features.api.q("mmoIssueFullWorkspace").hidden = !features.api.page.querySelector<HTMLElement>("[data-issue-hidden]");
-        if (features.navigation.ui.editor!.dirty) features.navigation.captureEditor();
+        ports.api.q("mmoIssueFullWorkspace").hidden = !ports.api.page.querySelector<HTMLElement>("[data-issue-hidden]");
+        if (session.navigation.ui.editor!.dirty) ports.navigation.captureEditor();
         if (guided) {
-            features.api.q("mmoRepairControls").hidden = false;
-            features.api.q("mmoRepairContext").textContent =
-                "Repair " + (features.issues.repairQueue!.index + 1) + " of " + features.issues.repairQueue!.tasks.length + ": " + issue.name;
-            features.api.q("mmoRepairStage").disabled =
-                features.navigation.ui.editor!.type === "metadata" && features.api.q("mmoManagerPreview").disabled;
+            ports.api.q("mmoRepairControls").hidden = false;
+            ports.api.q("mmoRepairContext").textContent =
+                "Repair " + (session.issues.repairQueue!.index + 1) + " of " + session.issues.repairQueue!.tasks.length + ": " + issue.name;
+            ports.api.q("mmoRepairStage").disabled = session.navigation.ui.editor!.type === "metadata" && ports.api.q("mmoManagerPreview").disabled;
         }
     }
     function applyIssueFieldFocus() {
         if (
-            !issueEditor ||
-            !features.navigation.ui.editor ||
-            issueEditor.key !== features.navigation.ui.editor.key ||
-            issueEditor.full ||
-            features.navigation.ui.editor.type !== "metadata" ||
-            issueEditor.choice !== "metadata"
+            !session.issueGuidance.issueEditor ||
+            !session.navigation.ui.editor ||
+            session.issueGuidance.issueEditor.key !== session.navigation.ui.editor.key ||
+            session.issueGuidance.issueEditor.full ||
+            session.navigation.ui.editor.type !== "metadata" ||
+            session.issueGuidance.issueEditor.choice !== "metadata"
         )
             return;
-        for (const el of features.api.q("mmoManagerFields").querySelectorAll<HTMLElement>("[data-field],.mmo-advanced")) {
+        for (const el of ports.api.q("mmoManagerFields").querySelectorAll<HTMLElement>("[data-field],.mmo-advanced")) {
             if (el.matches(".mmo-advanced") || !["title", "sortName", "overview"].includes(el.dataset.field!)) {
                 el.hidden = true;
                 el.dataset.issueHidden = "true";
@@ -305,33 +303,33 @@ export function createIssueGuidance(features: Features) {
         }
     }
     async function editIssueTarget(choice: string, identity?: ArtistIdentity) {
-        const state = issuePanelState,
+        const state = session.issueGuidance.issuePanelState,
             { issue, guided } = state!;
         if (choice === "binding") {
-            identity = features.api.doc.identityDrafts.concat(features.api.doc.identities).find((i) => i.id === issue.identityId);
+            identity = session.api.doc.identityDrafts.concat(session.api.doc.identities).find((i) => i.id === issue.identityId);
             if (!identity) throw Error("Identity no longer exists. Refresh Issues.");
         }
         if (identity) {
-            await features.identities.editIdentity(identity);
-            if (issuePanelState !== state || features.navigation.ui.screen !== "workspace") return;
-            if (choice === "link" && !features.api.doc.identities.concat(features.api.doc.identityDrafts).some((i) => i.id === identity.id))
-                features.navigation.markDirty();
+            await ports.identities.editIdentity(identity);
+            if (session.issueGuidance.issuePanelState !== state || session.navigation.ui.screen !== "workspace") return;
+            if (choice === "link" && !session.api.doc.identities.concat(session.api.doc.identityDrafts).some((i) => i.id === identity.id))
+                ports.navigation.markDirty();
             if (choice === "link" && issue.type === "credit") {
-                const aliases = features.api.q("mmoIdentityAliases").value.split("\n").filter(Boolean);
-                if (![features.api.q("mmoIdentityName").value, ...aliases].some((n) => issueNameKey(n) === issueNameKey(issue.name))) {
-                    features.api.q("mmoIdentityAliases").value = [...aliases, issue.name].join("\n");
-                    features.navigation.markDirty();
+                const aliases = ports.api.q("mmoIdentityAliases").value.split("\n").filter(Boolean);
+                if (![ports.api.q("mmoIdentityName").value, ...aliases].some((n) => issueNameKey(n) === issueNameKey(issue.name))) {
+                    ports.api.q("mmoIdentityAliases").value = [...aliases, issue.name].join("\n");
+                    ports.navigation.markDirty();
                 }
             }
         } else if (choice === "split") {
             const e = issue.guidance.evidence!;
-            const mapping = features.api.doc.drafts
-                .concat(features.api.doc.active)
+            const mapping = session.api.doc.drafts
+                .concat(session.api.doc.active)
                 .find(
                     (r) =>
                         r.kind === "alias" && r.credit === issue.name && r.libraries.includes(e.library!) && (r.role === e.role || r.role === "both"),
                 );
-            features.rules.edit(
+            ports.rules.edit(
                 mapping || {
                     id: crypto.randomUUID().replaceAll("-", ""),
                     label: "Repair credit: " + issue.name,
@@ -342,22 +340,23 @@ export function createIssueGuidance(features: Features) {
                     libraries: [e.library!],
                 },
             );
-            if (!mapping) features.navigation.markDirty();
-        } else if (choice === "rule") features.rules.edit(issue.context);
-        else await features.managerUi.managerOpen(issue.itemId);
-        if (issuePanelState !== state || features.navigation.ui.screen !== "workspace") return;
+            if (!mapping) ports.navigation.markDirty();
+        } else if (choice === "rule") ports.rules.edit(issue.context);
+        else await ports.managerUi.managerOpen(issue.itemId);
+        if (session.issueGuidance.issuePanelState !== state || session.navigation.ui.screen !== "workspace") return;
         focusIssueEditor(issue, guided, choice);
     }
     async function showArtistChoices() {
-        const state = issuePanelState,
-            request = features.navigation.ui.request;
-        const records = await features.api.api("identities/records");
-        if (issuePanelState !== state || request !== features.navigation.ui.request || features.navigation.ui.screen !== "issue") return;
+        const state = session.issueGuidance.issuePanelState,
+            request = session.navigation.ui.request;
+        const records = await ports.api.api("identities/records");
+        if (session.issueGuidance.issuePanelState !== state || request !== session.navigation.ui.request || session.navigation.ui.screen !== "issue")
+            return;
         const { issue } = state!,
             e = issue.guidance.evidence || {};
         const scope = e.library || e.music?.[0]?.library;
-        const identities = features.api.doc.identityDrafts
-            .concat(features.api.doc.identities)
+        const identities = session.api.doc.identityDrafts
+            .concat(session.api.doc.identities)
             .filter((i, index, all) => all.findIndex((x) => x.id === i.id) === index && (!scope || i.libraries.includes(scope)));
         const candidates = e.candidates || [];
         const rank = (r: NativeRecord) =>
@@ -371,14 +370,14 @@ export function createIssueGuidance(features: Features) {
                 .map(
                     (r) =>
                         '<option value="' +
-                        features.api.esc(r.id) +
+                        ports.api.esc(r.id) +
                         '">' +
-                        features.api.esc(r.name) +
+                        ports.api.esc(r.name) +
                         " · " +
-                        features.api.esc(r.id.slice(0, 8)) +
+                        ports.api.esc(r.id.slice(0, 8)) +
                         (rank(r)
                             ? " — " +
-                              features.api.esc(
+                              ports.api.esc(
                                   (
                                       {
                                           identity: "existing identity member",
@@ -393,9 +392,9 @@ export function createIssueGuidance(features: Features) {
                 .join("");
         const matching = (i: ArtistIdentity) =>
             issueNameKey(i.preferredName) === issueNameKey(issue.name) || i.aliases.some((a) => issueNameKey(a) === issueNameKey(issue.name));
-        features.api.q("mmoIssueChoices").hidden = true;
-        features.api.q("mmoIssueDecision").hidden = false;
-        features.api.q("mmoIssueDecision").innerHTML =
+        ports.api.q("mmoIssueChoices").hidden = true;
+        ports.api.q("mmoIssueDecision").hidden = false;
+        ports.api.q("mmoIssueDecision").innerHTML =
             "<h3>Choose the artist explicitly</h3>" +
             (identities.length
                 ? '<label class="selectContainer">Existing identity<select is="emby-select" id="mmoIssueIdentity"><option value="">Choose an identity</option>' +
@@ -404,49 +403,54 @@ export function createIssueGuidance(features: Features) {
                       .map(
                           (i) =>
                               '<option value="' +
-                              features.api.esc(i.id) +
+                              ports.api.esc(i.id) +
                               '">' +
-                              features.api.esc(i.preferredName) +
+                              ports.api.esc(i.preferredName) +
                               (matching(i) ? " — recognized name" : "") +
                               "</option>",
                       )
                       .join("") +
                   "</select></label>" +
-                  features.navigation.nativeButton("Use chosen identity", 'data-issue-choice="use-identity" disabled')
+                  ports.navigation.nativeButton("Use chosen identity", 'data-issue-choice="use-identity" disabled')
                 : "") +
             '<details><summary>Create an identity using existing records</summary><p class="secondaryText">Both endpoint-compatible representatives are required. This creates no native artist records.</p><label>Preferred page name<input is="emby-input" id="mmoIssuePreferredName" value="' +
-            features.api.esc(issue.name) +
+            ports.api.esc(issue.name) +
             '" /></label><label>MusicArtist representative<select is="emby-select" id="mmoIssueArtist">' +
             options(records.artists) +
             '</select></label><label>Person representative<select is="emby-select" id="mmoIssuePerson">' +
             options(records.persons) +
             "</select></label>" +
-            features.navigation.nativeButton("Use chosen records", 'data-issue-choice="use-records" disabled') +
+            ports.navigation.nativeButton("Use chosen records", 'data-issue-choice="use-records" disabled') +
             "</details>" +
-            features.navigation.nativeButton("Back to choices", 'data-issue-choice="choices"');
-        features.api.q("mmoIssueDecision").insertAdjacentHTML("beforeend", '<div id="mmoIssueCandidateLinks" class="mmo-actions"></div>');
-        features.navigation.normalizeControls(features.api.q("mmoIssueDecision"));
+            ports.navigation.nativeButton("Back to choices", 'data-issue-choice="choices"');
+        ports.api.q("mmoIssueDecision").insertAdjacentHTML("beforeend", '<div id="mmoIssueCandidateLinks" class="mmo-actions"></div>');
+        ports.navigation.normalizeControls(ports.api.q("mmoIssueDecision"));
     }
     function stopIssueVerification() {
-        if (issueCheckTimer !== null) clearTimeout(issueCheckTimer);
-        issueCheckTimer = null;
-        issueCheckSerial++;
+        if (session.issueGuidance.issueCheckTimer !== null) clearTimeout(session.issueGuidance.issueCheckTimer);
+        session.issueGuidance.issueCheckTimer = null;
+        session.issueGuidance.issueCheckSerial++;
     }
     function beginIssueVerification(context: IssueContext, result: Partial<ActivationResult>) {
         stopIssueVerification();
-        issueVerification = { context, result, started: Date.now(), rows: context.eligible.map((issue) => ({ issue, state: "Applied · checking" })) };
+        session.issueGuidance.issueVerification = {
+            context,
+            result,
+            started: Date.now(),
+            rows: context.eligible.map((issue) => ({ issue, state: "Applied · checking" })),
+        };
         renderIssueResults();
-        if (features.navigation.ui.view === "issues" && ["list", "issue"].includes(features.navigation.ui.screen)) void checkIssueResolution();
+        if (session.navigation.ui.view === "issues" && ["list", "issue"].includes(session.navigation.ui.screen)) void checkIssueResolution();
     }
     function renderIssueResults() {
-        const node = features.api.q("mmoIssueResults");
-        node.hidden = !issueVerification;
-        if (!issueVerification) return;
+        const node = ports.api.q("mmoIssueResults");
+        node.hidden = !session.issueGuidance.issueVerification;
+        if (!session.issueGuidance.issueVerification) return;
         const focused =
             node.contains(document.activeElement as HTMLElement | null) &&
             (document.activeElement as HTMLElement | null)!.matches("[data-issue-result-check]");
         const expanded = node.querySelector<HTMLDetailsElement>("details")?.open;
-        const rows = issueVerification.rows,
+        const rows = session.issueGuidance.issueVerification.rows,
             resolved = rows.filter((r) => r.state === "Resolved").length,
             remaining = rows.filter((r) => r.state === "Still needs attention").length;
         const checking = rows.filter((r) => r.state === "Applied · checking").length,
@@ -455,15 +459,15 @@ export function createIssueGuidance(features: Features) {
             .map(
                 (r) =>
                     "<p><strong>" +
-                    features.api.esc(r.issue.name) +
+                    ports.api.esc(r.issue.name) +
                     "</strong>" +
-                    features.nativeLinks.issueNativeLink(r.issue) +
+                    ports.nativeLinks.issueNativeLink(r.issue) +
                     " — " +
-                    features.api.esc(r.state) +
-                    (r.reason ? '<br><span class="secondaryText">' + features.api.esc(r.reason) + "</span>" : "") +
+                    ports.api.esc(r.state) +
+                    (r.reason ? '<br><span class="secondaryText">' + ports.api.esc(r.reason) + "</span>" : "") +
                     "</p>" +
                     (r.recoveryPath
-                        ? '<details><summary>Recovery material</summary><p class="mmo-value">' + features.api.esc(r.recoveryPath) + "</p></details>"
+                        ? '<details><summary>Recovery material</summary><p class="mmo-value">' + ports.api.esc(r.recoveryPath) + "</p></details>"
                         : ""),
             )
             .join("");
@@ -480,28 +484,33 @@ export function createIssueGuidance(features: Features) {
                 ? entries
                 : "<details" + (expanded ? " open" : "") + "><summary>Results (" + rows.length + ")</summary>" + entries + "</details>") +
             '<div class="mmo-actions">' +
-            features.navigation.nativeButton("Check again", "data-issue-result-check") +
+            ports.navigation.nativeButton("Check again", "data-issue-result-check") +
             "</div>";
         if (focused) node.querySelector<HTMLElement>("[data-issue-result-check]")!.focus({ preventScroll: true });
     }
     async function checkIssueResolution() {
         if (
-            !issueVerification ||
-            !features.api.page.isConnected ||
-            features.navigation.ui.view !== "issues" ||
-            !["list", "issue"].includes(features.navigation.ui.screen)
+            !session.issueGuidance.issueVerification ||
+            !ports.api.page.isConnected ||
+            session.navigation.ui.view !== "issues" ||
+            !["list", "issue"].includes(session.navigation.ui.screen)
         )
             return;
-        if (issueCheckTimer !== null) clearTimeout(issueCheckTimer);
-        issueCheckTimer = null;
-        const verification = issueVerification,
-            serial = ++issueCheckSerial,
-            listSerial = ++features.navigation.ui.issueRequest;
+        if (session.issueGuidance.issueCheckTimer !== null) clearTimeout(session.issueGuidance.issueCheckTimer);
+        session.issueGuidance.issueCheckTimer = null;
+        const verification = session.issueGuidance.issueVerification,
+            serial = ++session.issueGuidance.issueCheckSerial,
+            listSerial = ++session.navigation.ui.issueRequest;
         try {
-            const [status, data] = await Promise.all([features.api.api("status"), features.api.api("manager/issues")]);
-            if (serial !== issueCheckSerial || verification !== issueVerification || !features.api.page.isConnected) return;
-            if (listSerial !== features.navigation.ui.issueRequest) {
-                issueCheckTimer = setTimeout(() => void checkIssueResolution(), 5000);
+            const [status, data] = await Promise.all([ports.api.api("status"), ports.api.api("manager/issues")]);
+            if (
+                serial !== session.issueGuidance.issueCheckSerial ||
+                verification !== session.issueGuidance.issueVerification ||
+                !ports.api.page.isConnected
+            )
+                return;
+            if (listSerial !== session.navigation.ui.issueRequest) {
+                session.issueGuidance.issueCheckTimer = setTimeout(() => void checkIssueResolution(), 5000);
                 return;
             }
             // Resolution requires a successful fresh audit and settled worker, never a vanished row alone.
@@ -510,11 +519,11 @@ export function createIssueGuidance(features: Features) {
                     !!(status.pending || status.refreshPending) ||
                     (typeof expected === "number" && (data.revision < expected || status.revision < expected)),
                 timedOut = Date.now() - verification.started >= 60000;
-            features.issues.issueItems = data.items;
-            features.issues.issueArchived = data.archivedReports;
-            features.navigation.ui.issueLoaded = true;
-            features.issues.renderIssues();
-            features.api.q("mmoIssuesMessage").textContent = features.issues.issueItems.length + " findings across all views.";
+            session.issues.issueItems = data.items;
+            session.issues.issueArchived = data.archivedReports;
+            session.navigation.ui.issueLoaded = true;
+            ports.issues.renderIssues();
+            ports.api.q("mmoIssuesMessage").textContent = session.issues.issueItems.length + " findings across all views.";
             for (const row of verification.rows) {
                 const outcome = (verification.result.cleanupResults || []).find(
                     (o) => o.id.replaceAll("-", "") === row.issue.itemId?.replaceAll("-", ""),
@@ -537,12 +546,12 @@ export function createIssueGuidance(features: Features) {
                 }
             }
             renderIssueResults();
-            if (pending && !timedOut) issueCheckTimer = setTimeout(() => void checkIssueResolution(), 5000);
+            if (pending && !timedOut) session.issueGuidance.issueCheckTimer = setTimeout(() => void checkIssueResolution(), 5000);
         } catch (caughtError) {
             operationError(caughtError);
-            if (serial !== issueCheckSerial || verification !== issueVerification) return;
-            if (listSerial !== features.navigation.ui.issueRequest) {
-                issueCheckTimer = setTimeout(() => void checkIssueResolution(), 5000);
+            if (serial !== session.issueGuidance.issueCheckSerial || verification !== session.issueGuidance.issueVerification) return;
+            if (listSerial !== session.navigation.ui.issueRequest) {
+                session.issueGuidance.issueCheckTimer = setTimeout(() => void checkIssueResolution(), 5000);
                 return;
             }
             for (const row of verification.rows) {
@@ -556,7 +565,7 @@ export function createIssueGuidance(features: Features) {
         if (!location.hash.toLowerCase().includes("configurationpage?name=musicmetadatamanager")) stopIssueVerification();
     };
     const issueDetached = new MutationObserver(() => {
-        if (!features.api.page.isConnected) {
+        if (!ports.api.page.isConnected) {
             stopIssueVerification();
             issueDetached.disconnect();
             window.removeEventListener("hashchange", issueRouteChanged);
@@ -564,64 +573,62 @@ export function createIssueGuidance(features: Features) {
     });
     return {
         initialize() {
-            features.api.q("mmoIssuePanelBody").onchange = (event) => {
-                const identity = features.api.page.querySelector<HTMLButtonElement>('[data-issue-choice="use-identity"]'),
-                    records = features.api.page.querySelector<HTMLButtonElement>('[data-issue-choice="use-records"]');
+            ports.api.q("mmoIssuePanelBody").onchange = (event) => {
+                const identity = ports.api.page.querySelector<HTMLButtonElement>('[data-issue-choice="use-identity"]'),
+                    records = ports.api.page.querySelector<HTMLButtonElement>('[data-issue-choice="use-records"]');
                 if (
-                    features.api.find("mmoIssueCandidateLinks") &&
+                    ports.api.find("mmoIssueCandidateLinks") &&
                     ["mmoIssueIdentity", "mmoIssueArtist", "mmoIssuePerson"].includes((event.target as HTMLElement).id)
                 ) {
-                    const chosen = features.api.doc.identities.find((i) => i.id === features.api.find("mmoIssueIdentity")?.value);
-                    features.api.q("mmoIssueCandidateLinks").innerHTML =
-                        features.nativeLinks.nativeLink(chosen?.artistId, chosen?.preferredName, false) +
-                        features.nativeLinks.nativeLink(features.api.find("mmoIssueArtist")?.value, "selected MusicArtist", false) +
-                        features.nativeLinks.nativeLink(features.api.find("mmoIssuePerson")?.value, "selected Person", false);
+                    const chosen = session.api.doc.identities.find((i) => i.id === ports.api.find("mmoIssueIdentity")?.value);
+                    ports.api.q("mmoIssueCandidateLinks").innerHTML =
+                        ports.nativeLinks.nativeLink(chosen?.artistId, chosen?.preferredName, false) +
+                        ports.nativeLinks.nativeLink(ports.api.find("mmoIssueArtist")?.value, "selected MusicArtist", false) +
+                        ports.nativeLinks.nativeLink(ports.api.find("mmoIssuePerson")?.value, "selected Person", false);
                 }
-                if (identity) features.actions.actions.setDisabled(identity, !features.api.q("mmoIssueIdentity").value);
+                if (identity) ports.actions.actions.setDisabled(identity, !ports.api.q("mmoIssueIdentity").value);
                 if (records)
-                    features.actions.actions.setDisabled(
+                    ports.actions.actions.setDisabled(
                         records,
-                        !features.api.q("mmoIssueArtist").value ||
-                            !features.api.q("mmoIssuePerson").value ||
-                            !features.api.q("mmoIssuePreferredName").value.trim(),
+                        !ports.api.q("mmoIssueArtist").value ||
+                            !ports.api.q("mmoIssuePerson").value ||
+                            !ports.api.q("mmoIssuePreferredName").value.trim(),
                     );
             };
-            features.api.q("mmoIssuePanelBody").oninput = features.api.q("mmoIssuePanelBody").onchange;
-            features.api.q("mmoIssuePanelBack").onclick = () => features.api.perform(() => features.navigation.showDestination("issues", true, true));
-            features.api.q("mmoIssueEditorBack").onclick = () => features.api.perform(() => openIssuePanel(issueEditor!.issue, issueEditor!.guided));
-            features.api.q("mmoIssueFullWorkspace").onclick = () => {
-                if (issueEditor) issueEditor.full = true;
-                for (const el of features.api.page.querySelectorAll<HTMLElement>("[data-issue-hidden]")) {
+            ports.api.q("mmoIssuePanelBody").oninput = ports.api.q("mmoIssuePanelBody").onchange;
+            ports.api.q("mmoIssuePanelBack").onclick = () => ports.api.perform(() => ports.navigation.showDestination("issues", true, true));
+            ports.api.q("mmoIssueEditorBack").onclick = () =>
+                ports.api.perform(() => openIssuePanel(session.issueGuidance.issueEditor!.issue, session.issueGuidance.issueEditor!.guided));
+            ports.api.q("mmoIssueFullWorkspace").onclick = () => {
+                if (session.issueGuidance.issueEditor) session.issueGuidance.issueEditor.full = true;
+                for (const el of ports.api.page.querySelectorAll<HTMLElement>("[data-issue-hidden]")) {
                     el.hidden = false;
                     delete el.dataset.issueHidden;
                 }
-                features.api.q("mmoIssueFullWorkspace").hidden = true;
+                ports.api.q("mmoIssueFullWorkspace").hidden = true;
             };
-            features.api.q("mmoIssuePanelBody").onclick = (e) => {
+            ports.api.q("mmoIssuePanelBody").onclick = (e) => {
                 const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
                 if (!b) return;
-                features.api.perform(async (operation) => {
-                    const state = issuePanelState,
+                ports.api.perform(async (operation) => {
+                    const state = session.issueGuidance.issuePanelState,
                         { issue } = state!,
                         choice = b.dataset.issueChoice;
                     if (b.dataset.issueBinding) {
-                        const i = features.api.doc.identityDrafts.concat(features.api.doc.identities).find((x) => x.id === b.dataset.issueBinding);
+                        const i = session.api.doc.identityDrafts.concat(session.api.doc.identities).find((x) => x.id === b.dataset.issueBinding);
                         if (!i) throw Error("Binding no longer exists. Refresh Issues.");
                         await editIssueTarget("link", i);
                         return;
                     }
                     if (b.dataset.issuePolicy) {
                         const id = b.dataset.issuePolicy,
-                            p = features.api.doc.policyDrafts.concat(features.api.doc.policies).find((x) => x.id === id),
-                            r = features.api.doc.drafts.concat(features.api.doc.active).find((x) => x.id === id);
+                            p = session.api.doc.policyDrafts.concat(session.api.doc.policies).find((x) => x.id === id),
+                            r = session.api.doc.drafts.concat(session.api.doc.active).find((x) => x.id === id);
                         if (p)
-                            await features.managerUi.managerOpen(
-                                p.itemId || features.api.doc.identities.find((i) => i.id === p.identityId)?.artistId,
-                                p,
-                            );
-                        else if (r) features.rules.edit(r);
+                            await ports.managerUi.managerOpen(p.itemId || session.api.doc.identities.find((i) => i.id === p.identityId)?.artistId, p);
+                        else if (r) ports.rules.edit(r);
                         else throw Error("Policy no longer exists. Refresh Issues.");
-                        if (issuePanelState === state && features.navigation.ui.screen === "workspace")
+                        if (session.issueGuidance.issuePanelState === state && session.navigation.ui.screen === "workspace")
                             focusIssueEditor(issue, state!.guided, "inspect");
                         return;
                     }
@@ -629,15 +636,15 @@ export function createIssueGuidance(features: Features) {
                     if (choice === "link") return showArtistChoices();
                     if (choice === "choices") return openIssuePanel(issue, state!.guided);
                     if (choice === "use-identity") {
-                        const id = features.api.q("mmoIssueIdentity").value,
-                            identity = features.api.doc.identityDrafts.concat(features.api.doc.identities).find((i) => i.id === id);
+                        const id = ports.api.q("mmoIssueIdentity").value,
+                            identity = session.api.doc.identityDrafts.concat(session.api.doc.identities).find((i) => i.id === id);
                         if (!identity) throw Error("Choose an identity first.");
                         return editIssueTarget("link", identity);
                     }
                     if (choice === "use-records") {
-                        const artistId = features.api.q("mmoIssueArtist").value,
-                            personId = features.api.q("mmoIssuePerson").value,
-                            name = features.api.q("mmoIssuePreferredName").value.trim(),
+                        const artistId = ports.api.q("mmoIssueArtist").value,
+                            personId = ports.api.q("mmoIssuePerson").value,
+                            name = ports.api.q("mmoIssuePreferredName").value.trim(),
                             ev = issue.guidance.evidence!;
                         if (!artistId || !personId || !name) throw Error("Choose both representatives and a page name.");
                         return editIssueTarget("link", {
@@ -653,37 +660,37 @@ export function createIssueGuidance(features: Features) {
                     }
                     if (["metadata", "inspect", "binding", "split", "rule"].includes(choice)) return editIssueTarget(choice);
                     if (choice === "cleanup")
-                        return features.rules.preview({ cleanupIds: [issue.itemId!] }, null, { action: "cleanup", eligible: [issue], skipped: [] });
+                        return ports.rules.preview({ cleanupIds: [issue.itemId!] }, null, { action: "cleanup", eligible: [issue], skipped: [] });
                     if (choice === "disable" || choice === "delete")
-                        return features.rules.preview({ [choice === "disable" ? "disableIds" : "deleteIds"]: [issue.context.id] }, null, {
+                        return ports.rules.preview({ [choice === "disable" ? "disableIds" : "deleteIds"]: [issue.context.id] }, null, {
                             action: "repair",
                             eligible: [issue],
                             skipped: [],
                         });
                     if (choice === "archive") {
-                        await features.api.api("manager/errors/acknowledge", "POST", { ids: [issue.context.id] });
-                        features.issues.issueSelection.delete(issue.key);
-                        await features.issues.managerIssues();
-                        if (features.notifications.notifications.valid(operation)) await features.navigation.showDestination("issues");
-                        features.notifications.notifications.scope(operation)("Report archived. No corrections were retried.");
+                        await ports.api.api("manager/errors/acknowledge", "POST", { ids: [issue.context.id] });
+                        session.issues.issueSelection.delete(issue.key);
+                        await ports.issues.managerIssues();
+                        if (ports.notifications.notifications.valid(operation)) await ports.navigation.showDestination("issues");
+                        ports.notifications.notifications.scope(operation)("Report archived. No corrections were retried.");
                         return;
                     }
                     if (choice === "reapply") {
-                        await features.api.api("apply", "POST", {});
+                        await ports.api.api("apply", "POST", {});
                         beginIssueVerification({ action: "repair", eligible: [issue], skipped: [] }, {});
-                        features.notifications.notifications.scope(operation)(
+                        ports.notifications.notifications.scope(operation)(
                             "Active corrections queued. The original report remains until explicitly archived.",
                         );
                         return;
                     }
                     if (choice === "recheck") {
-                        await features.issues.managerIssues();
-                        if (issuePanelState === state && features.navigation.ui.screen === "issue") {
-                            const current = features.issues.issueItems.find((i) => i.key === issue.key);
+                        await ports.issues.managerIssues();
+                        if (session.issueGuidance.issuePanelState === state && session.navigation.ui.screen === "issue") {
+                            const current = session.issues.issueItems.find((i) => i.key === issue.key);
                             if (current) await openIssuePanel(current, state!.guided);
                             else {
                                 beginIssueVerification({ action: "check", eligible: [issue], skipped: [] }, {});
-                                await features.navigation.showDestination("issues");
+                                await ports.navigation.showDestination("issues");
                             }
                         }
                         return;
@@ -691,67 +698,38 @@ export function createIssueGuidance(features: Features) {
                     if (choice === "missing") {
                         const examples = issue.guidance.evidence!.items || [],
                             id = examples[0]?.id;
-                        features.api.q("mmoIssueDecision").hidden = false;
-                        features.api.q("mmoIssueDecision").innerHTML =
+                        ports.api.q("mmoIssueDecision").hidden = false;
+                        ports.api.q("mmoIssueDecision").innerHTML =
                             "<h3>Find or discover the native artist first</h3><p>Inspect an affected release’s credits and provider settings. Use Jellyfin’s metadata controls to identify the correct artist or refresh discovery, then check again.</p>" +
-                            features.nativeLinks.nativeLink(id, examples[0]?.name, false) +
+                            ports.nativeLinks.nativeLink(id, examples[0]?.name, false) +
                             '<p class="secondaryText">No record is created and no refresh runs automatically. Identity linking needs both MusicArtist and Person representatives.</p>' +
-                            features.navigation.nativeButton("Check again", 'data-issue-choice="recheck"');
+                            ports.navigation.nativeButton("Check again", 'data-issue-choice="recheck"');
                         return;
                     }
                     if (choice === "skip") {
-                        features.issues.repairQueue!.staged.delete(features.issues.repairQueue!.tasks[features.issues.repairQueue!.index]!.key);
-                        features.issues.repairQueue!.index++;
-                        return features.issues.openRepairTask();
+                        session.issues.repairQueue!.staged.delete(session.issues.repairQueue!.tasks[session.issues.repairQueue!.index]!.key);
+                        session.issues.repairQueue!.index++;
+                        return ports.issues.openRepairTask();
                     }
-                    if (choice === "return") return features.navigation.showDestination("issues");
+                    if (choice === "return") return ports.navigation.showDestination("issues");
                 });
             };
-            features.api.q("mmoIssueResults").onclick = (e) => {
+            ports.api.q("mmoIssueResults").onclick = (e) => {
                 if ((e.target as HTMLElement).closest<HTMLElement>("[data-issue-result-check]"))
-                    features.api.perform(() => {
-                        if (issueVerification) issueVerification.started = Date.now();
+                    ports.api.perform(() => {
+                        if (session.issueGuidance.issueVerification) session.issueGuidance.issueVerification.started = Date.now();
                         return checkIssueResolution();
                     });
             };
-            for (const event of ["pagehide", "viewhide", "viewbeforehide"]) features.api.page.addEventListener(event, stopIssueVerification);
+            for (const event of ["pagehide", "viewhide", "viewbeforehide"]) ports.api.page.addEventListener(event, stopIssueVerification);
             for (const event of ["pageshow", "viewshow"])
-                features.api.page.addEventListener(event, () => {
-                    if (issueVerification && features.navigation.ui.view === "issues") void checkIssueResolution();
+                ports.api.page.addEventListener(event, () => {
+                    if (session.issueGuidance.issueVerification && session.navigation.ui.view === "issues") void checkIssueResolution();
                 });
             window.addEventListener("hashchange", issueRouteChanged);
             issueDetached.observe(document.body, { childList: true, subtree: true });
         },
-        get issuePanelState() {
-            return issuePanelState;
-        },
-        set issuePanelState(value: typeof issuePanelState) {
-            issuePanelState = value;
-        },
-        get issueEditor() {
-            return issueEditor;
-        },
-        set issueEditor(value: typeof issueEditor) {
-            issueEditor = value;
-        },
-        get issueVerification() {
-            return issueVerification;
-        },
-        set issueVerification(value: typeof issueVerification) {
-            issueVerification = value;
-        },
-        get issueCheckTimer() {
-            return issueCheckTimer;
-        },
-        set issueCheckTimer(value: typeof issueCheckTimer) {
-            issueCheckTimer = value;
-        },
-        get issueCheckSerial() {
-            return issueCheckSerial;
-        },
-        set issueCheckSerial(value: typeof issueCheckSerial) {
-            issueCheckSerial = value;
-        },
+
         get issueTypeNames() {
             return issueTypeNames;
         },

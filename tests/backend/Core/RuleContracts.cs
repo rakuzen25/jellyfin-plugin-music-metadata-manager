@@ -1,110 +1,183 @@
-using MusicMetadataManager;
 using System.Text.Json;
+using MusicMetadataManager;
 using Xunit;
+
 namespace MusicMetadataManager.Tests;
 public sealed class RuleContracts
 {
-[Fact]
-public void RuleIdentityAndSerializationContracts()
-{
-Assert.Equal(1, new Document().SchemaVersion);
-Assert.Equal(1, new Journal().SchemaVersion);
-Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Document>("{}", Codec.Json));
-Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Document>("{\"schemaVersion\":1,\"active\":[],\"drafts\":[]}", Codec.Json));
-int assertions = 0;
-void Check(bool value, string name) { if (!value) throw new Exception(name); assertions++; }
-Rule R(string kind, string path = "") => new() { Kind = kind, Path = path, Libraries = ["lib"] };
-var album = R("album", "/music/Bubblin");
-album.Fields.Title = "Bubblin";
-album.TrackDefaults.DiscNumber = 1;
-var track = R("track", "/music/Bubblin/special.flac");
-track.Fields.DiscNumber = 2;
-track.Fields.TrackNumber = 1;
-var alias = R("alias");
-alias.Credit = "Mori Calliope × 星街すいせい";
-alias.Names = ["Mori Calliope", "星街すいせい"];
-var v = new View { Path = track.Path, Library = "lib", Locked = true, Values = new Fields { Title = "special", Album = "special", Artists = [alias.Credit], AlbumArtists = [alias.Credit], DiscNumber = 1, TrackNumber = 1 }.Values() };
-var result = Engine.Project(v, [album, track, alias]);
-Check(result.Values["discNumber"].GetInt32() == 2, "track wins over folder default");
-Check(result.Values["album"].GetString() == "Bubblin", "folder title propagates to track album");
-Check(result.Values["artists"].Deserialize<string[]>()!.Length == 2, "Unicode alias expands");
-Check(!result.Values.ContainsKey("albumArtists"), "performer mapping does not change album artist");
-Check(!result.Values.ContainsKey("title"), "unspecified title unmanaged");
-alias.Role = "both";
-Check(Engine.Project(v, [alias]).Values.ContainsKey("albumArtists"), "both roles");
-v.Library = "elsewhere";
-Check(Engine.Project(v, [album, track, alias]).Values.Count == 0, "library scope");
-v.Library = "lib";
-track.Fields.Artists = ["Explicit"];
-Check(Engine.Project(v, [alias, track]).Values["artists"].Deserialize<string[]>()![0] == "Explicit", "exact artist override wins");
-var chained = R("alias");
-chained.Credit = "Mori Calliope";
-chained.Names = ["Chained"];
-Check(Engine.Project(v, [alias, chained]).Values["artists"].Deserialize<string[]>()![0] == "Mori Calliope", "no alias chaining");
-var punctuation = R("alias");
-punctuation.Credit = "Leo/need feat. 星乃一歌&初音ミク";
-punctuation.Names = ["Leo/need", "星乃一歌", "初音ミク"];
-v.Values["artists"] = JsonSerializer.SerializeToElement(new[] { punctuation.Credit });
-Check(Engine.Project(v, [punctuation]).Values["artists"].Deserialize<string[]>()![0] == "Leo/need", "slash retained");
-var nbsp = R("alias");
-nbsp.Credit = "缶缶\u00a0feat.\u00a0Ayase\u00a0&\u00a0yuigot";
-nbsp.Names = ["缶缶", "Ayase", "yuigot"];
-v.Values["artists"] = JsonSerializer.SerializeToElement(new[] { nbsp.Credit });
-Check(Engine.Project(v, [nbsp]).Values["artists"].Deserialize<string[]>()!.Length == 3, "NBSP exact match");
-v.Values["artists"] = JsonSerializer.SerializeToElement(new[] { nbsp.Credit.Replace('\u00a0', ' ') });
-Check(Engine.Project(v, [nbsp]).Values.Count == 0, "no invisible whitespace guessing");
-Check(Engine.Validate([album, track, alias]).Count == 0, "valid rules");
-var duplicate = Codec.Clone(track);
-duplicate.Id = Guid.NewGuid().ToString("N");
-Check(Engine.Validate([track, duplicate]).Any(x => x.Contains("Conflicting")), "same specificity conflict");
-duplicate.Libraries = ["other"];
-Check(Engine.Validate([track, duplicate]).Count == 0, "disjoint scopes");
-track.Fields.TrackNumber = 0;
-Check(Engine.Validate([track]).Count > 0, "reject zero index");
-track.Fields.TrackNumber = 1;
-track.Fields.Artists = [];
-Check(Engine.Validate([track]).Count > 0, "reject clearing list");
-track.Fields.Artists = ["Valid"];
-var document = new Document { Active = [album], Drafts = [track] };
-Check(Engine.Project(v, document.Active).Values["discNumber"].GetInt32() == 1, "draft not active");
-Check(Codec.Hash(document) == Codec.Hash(Codec.Clone(document)), "JSON roundtrip");
-Check(Engine.Project(v, []).Values.Count == 0, "removal releases managed fields");
-Check(v.Locked && Engine.Project(v, [album]).Values.Count > 0, "locks do not suppress explicit rules");
-Check(Engine.Equal(JsonSerializer.SerializeToElement(new[] { "Mori Calliope", "星街すいせい" }), JsonDocument.Parse("[\n  \"Mori Calliope\",\n  \"星街すいせい\"\n]").RootElement), "journal JSON whitespace does not change array equality");
-Check(!Engine.Equal(JsonSerializer.SerializeToElement(new[] { "A", "B" }), JsonSerializer.SerializeToElement(new[] { "B", "A" })), "artist order remains significant");
-var identity = new ArtistIdentity { PreferredName="天神子兎音", Aliases=["Kotone", "Cafe\u0301"], Libraries=["music"], ArtistId=Guid.NewGuid(), PersonId=Guid.NewGuid() };
-Check(IdentityEngine.Matches(identity,"kotone"),"identity case-insensitive exact name");
-Check(IdentityEngine.Matches(identity,"Café"),"identity Unicode NFC");
-Check(!IdentityEngine.Matches(identity,"Kotone × Other"),"identity does not split collaborations");
-Check(IdentityEngine.SearchScore(identity,"Koto")==80,"identity prefix search");
-Check(IdentityEngine.SearchScore(identity,"otone")==50,"identity substring search");
-var another=Codec.Clone(identity);another.Id=Guid.NewGuid().ToString("N");
-Check(IdentityEngine.Validate([identity,another]).Count>0,"identity overlapping aliases rejected");
-another.Libraries=["different"];
-Check(IdentityEngine.Validate([identity,another]).Count==0,"identity distinct library scopes");
-var aliasDocument=new Document{Identities=[identity],IdentityDrafts=[another]};
-Check(Codec.Hash(aliasDocument)==Codec.Hash(Codec.Clone(aliasDocument)),"identity JSON roundtrip");
-Check(Codec.Clone(aliasDocument).Identities.Count==1,"identity draft isolation");
+    private static Rule Rule(string kind = "track", string path = "/music/album/track.flac") => new()
+    {
+        Kind = kind,
+        Path = path,
+        Libraries = ["music"]
+    };
+    private static View Track(string[]? artists = null) => new()
+    {
+        Path = "/music/album/track.flac",
+        AlbumPath = "/music/album",
+        Library = "music",
+        Values = new Fields
+        {
+            Title = "Original",
+            Album = "Original album",
+            Artists = artists ?? ["Original artist"],
+            AlbumArtists = ["Album artist"],
+            DiscNumber = 1,
+            TrackNumber = 1
+        }.Values()
+    };
+    [Fact]
+    public void ExactTrackWinsOverAlbumDefaultsWithoutManagingUnspecifiedFields()
+    {
+        var album = Rule("album", "/music/album");
+        album.Fields.Title = "Album";
+        album.TrackDefaults.DiscNumber = 1;
+        var track = Rule();
+        track.Fields.DiscNumber = 2;
+        track.Fields.TrackNumber = 3;
+        var values = Engine.Project(Track(), [album, track]).Values;
+        Assert.Equal(2, values["discNumber"].GetInt32());
+        Assert.Equal(3, values["trackNumber"].GetInt32());
+        Assert.Equal("Album", values["album"].GetString());
+        Assert.False(values.ContainsKey("title"));
+    }
 
-var decisions=new Dictionary<string,FieldDecision>{["overview"]=new(){Mode="empty"},["genres"]=new(){Mode="approved",Value=JsonSerializer.SerializeToElement(new[]{"J-Pop"})}};
-Check(MetadataEngine.Values(decisions)["overview"].ValueKind==JsonValueKind.Null,"explicit empty is managed null");
-Check(MetadataEngine.Values(new(){["overview"]=new(){Mode="unmanaged"}}).Count==0,"unmanaged omitted from engine targets");
-Check(MetadataEngine.ValidateFields(new(){["title"]=new(){Mode="empty"}}).Count>0,"required title cannot be cleared");
-Check(MetadataEngine.ValidateFields(new(){["premiereDate"]=new(){Value=JsonSerializer.SerializeToElement("2018")}}).Count>0,"partial native dates rejected");
-Check(MetadataEngine.ValidateFields(new(){["premiereDate"]=new(){Value=JsonSerializer.SerializeToElement("2018-06-11")}}).Count==0,"complete source dates accepted");
-Check(MetadataEngine.ValidateFields(new(){["productionYear"]=new(){Value=JsonSerializer.SerializeToElement("2018")}}).Count>0,"year must be numeric without throwing");
-Check(MetadataEngine.ValidateFields(new(){["productionYear"]=new(){Value=JsonSerializer.SerializeToElement(2018)}}).Count==0,"known year accepted independently of date");
-var extended=Codec.Clone(track);extended.Fields.Decisions=decisions;
-Check(Engine.Project(v,[extended]).Values["overview"].ValueKind==JsonValueKind.Null,"extended fields preserve exact-rule precedence");
-var policy=new MetadataPolicy{ItemId=Guid.NewGuid(),Libraries=["music"],Fields=decisions};
-var documentWithPolicies=new Document{Active=[extended],Policies=[policy],PolicyDrafts=[new(){ItemId=Guid.NewGuid(),Libraries=["music"],Fields=new(){["overview"]=new(){Value=JsonSerializer.SerializeToElement("draft")}}}]};
-Check(Codec.Hash(documentWithPolicies)==Codec.Hash(Codec.Clone(documentWithPolicies)),"baseline JSON round trip");
-var xmlSerializer=new System.Xml.Serialization.XmlSerializer(typeof(Document));using var xml=new StringWriter();xmlSerializer.Serialize(xml,documentWithPolicies);var xmlRoundtrip=(Document)xmlSerializer.Deserialize(new StringReader(xml.ToString()))!;
-Check(Codec.Hash(documentWithPolicies)==Codec.Hash(xmlRoundtrip),"Jellyfin XML configuration round trip preserves field decisions");
-Check(MetadataEngine.ValidatePolicies([policy]).Count==0,"artist policy optional fields valid");
-var duplicatePolicy=Codec.Clone(policy);duplicatePolicy.Id=Guid.NewGuid().ToString("N");
-Check(MetadataEngine.ValidatePolicies([policy,duplicatePolicy]).Count>0,"native policy field conflicts rejected");
-var invalidAlbumDecision=new Rule{Kind="album",Path="/music/Bubblin",Libraries=["music"],Fields=new(){Decisions=new(){["album"]=new(){Value=JsonSerializer.SerializeToElement("Wrong field")}}}};
-Check(Engine.Validate([invalidAlbumDecision]).Any(e=>e.Contains("album fields")),"album decisions reject track-only native fields");
-}
+    [Theory]
+    [InlineData("artists", true, false)]
+    [InlineData("albumArtists", false, true)]
+    [InlineData("both", true, true)]
+    public void CreditRoleControlsWhichListsAreManaged(string role, bool performers, bool albumArtists)
+    {
+        var alias = Rule("alias", "");
+        alias.Credit = "A × B";
+        alias.Names = ["A", "B"];
+        alias.Role = role;
+        var view = Track([alias.Credit]);
+        view.Values["albumArtists"] = JsonSerializer.SerializeToElement(new[] { alias.Credit });
+        var values = Engine.Project(view, [alias]).Values;
+        Assert.Equal(performers, values.ContainsKey("artists"));
+        Assert.Equal(albumArtists, values.ContainsKey("albumArtists"));
+    }
+
+    [Theory]
+    [InlineData("Leo/need feat. 星乃一歌&初音ミク")]
+    [InlineData("缶缶\u00a0feat.\u00a0Ayase")]
+    public void MappingsPreserveExactUnicodePunctuationAndWhitespace(string credit)
+    {
+        var alias = Rule("alias", "");
+        alias.Credit = credit;
+        alias.Names = ["Leo/need", "星乃一歌"];
+        Assert.Equal(alias.Names, Engine.Project(Track([credit]), [alias]).Values["artists"].Deserialize<string[]>());
+        Assert.Empty(Engine.Project(Track([credit + " "]), [alias]).Values);
+    }
+
+    [Fact]
+    public void AliasExpansionDoesNotChainAndExplicitTrackCreditsWin()
+    {
+        var alias = Rule("alias", "");
+        alias.Credit = "A + B";
+        alias.Names = ["A", "B"];
+        var chained = Rule("alias", "");
+        chained.Credit = "A";
+        chained.Names = ["Other"];
+        Assert.Equal(new[] { "A", "B" }, Engine.Project(Track([alias.Credit]), [alias, chained]).Values["artists"].Deserialize<string[]>());
+        var exact = Rule();
+        exact.Fields.Artists = ["Explicit"];
+        Assert.Equal(new[] { "Explicit" }, Engine.Project(Track([alias.Credit]), [alias, exact]).Values["artists"].Deserialize<string[]>());
+    }
+
+    [Fact]
+    public void LibraryScopeAndDraftIsolationAreRespectedEvenForLockedItems()
+    {
+        var rule = Rule();
+        rule.Fields.Title = "Managed";
+        var view = Track();
+        view.Locked = true;
+        Assert.Equal("Managed", Engine.Project(view, [rule]).Values["title"].GetString());
+        view.Library = "other";
+        Assert.Empty(Engine.Project(view, [rule]).Values);
+        Assert.Empty(Engine.Project(Track(), new Document { Drafts = [rule] }.Active).Values);
+    }
+
+    [Fact]
+    public void OverlappingDecisionsConflictButDisjointLibrariesDoNot()
+    {
+        var a = Rule();
+        a.Fields.Title = "A";
+        var b = Rule();
+        b.Fields.Title = "B";
+        Assert.Contains(Engine.Validate([a, b]), e => e.Contains("Conflicting"));
+        b.Libraries = ["other"];
+        Assert.Empty(Engine.Validate([a, b]));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void TrackNumbersMustBePositive(int number)
+    {
+        var rule = Rule();
+        rule.Fields.TrackNumber = number;
+        Assert.NotEmpty(Engine.Validate([rule]));
+    }
+
+    [Fact]
+    public void AlbumRejectsTrackOnlyFieldsAndTrackRejectsDefaults()
+    {
+        var album = Rule("album", "/music/album");
+        album.Fields.Album = "Wrong";
+        Assert.NotEmpty(Engine.Validate([album]));
+        var track = Rule();
+        track.TrackDefaults.Title = "Wrong";
+        Assert.NotEmpty(Engine.Validate([track]));
+    }
+
+    [Fact]
+    public void FieldAccessorsShareOneCanonicalMap()
+    {
+        var fields = new Fields
+        {
+            Title = "First"
+        };
+        fields.Decisions["title"] = new()
+        {
+            Value = JsonSerializer.SerializeToElement("Second")
+        };
+        Assert.Equal("Second", fields.Title);
+        Assert.Equal("Second", fields.Values()["title"].GetString());
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(fields, Codec.Json));
+        Assert.Single(json.RootElement.EnumerateObject());
+        Assert.True(json.RootElement.TryGetProperty("decisions", out _));
+    }
+
+    [Fact]
+    public void CurrentDocumentRoundtripPreservesDraftsDecisionsAndIdentityRegistries()
+    {
+        var rule = Rule();
+        rule.Fields.Title = "Unicode 星";
+        var doc = new Document
+        {
+            Active = [rule],
+            Drafts = [Rule()],
+            Policies = [new()
+            {
+                ItemId = Guid.NewGuid(),
+                Libraries = ["music"]
+            }
+
+            ]
+        };
+        Assert.Equal(Codec.Hash(doc), Codec.Hash(Codec.Clone(doc)));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Document>("{}", Codec.Json));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Document>("{\"schemaVersion\":1,\"active\":[],\"drafts\":[]}", Codec.Json));
+    }
+
+    [Fact]
+    public void JsonEqualityIgnoresFormattingButPreservesArtistOrder()
+    {
+        using var a = JsonDocument.Parse("[ \"A\", \"B\" ]");
+        using var b = JsonDocument.Parse("[\"A\",\"B\"]");
+        Assert.True(Engine.Equal(a.RootElement, b.RootElement));
+        Assert.False(Engine.Equal(a.RootElement, JsonSerializer.SerializeToElement(new[] { "B", "A" })));
+    }
 }

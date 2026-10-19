@@ -23,12 +23,14 @@ schema = 1
 
 [backend]
 "entry" = "src/Host/Plugin.csproj"
-"projects" = { "Core" = "src/Core/MusicMetadataManager.Core.csproj", "Infrastructure" = "src/Infrastructure/MusicMetadataManager.Infrastructure.csproj", "Host" = "src/Host/Plugin.csproj" }
+"projects" = { "Application" = "src/Application/MusicMetadataManager.Application.csproj", "Core" = "src/Core/MusicMetadataManager.Core.csproj", "Infrastructure" = "src/Infrastructure/MusicMetadataManager.Infrastructure.csproj", "Host" = "src/Host/Plugin.csproj" }
 "project_assemblies" = [
+  "MusicMetadataManager.Application",
   "MusicMetadataManager.Core",
   "MusicMetadataManager.Infrastructure",
 ]
 "tests" = [
+  "tests/backend/Application/MusicMetadataManager.Application.Tests.csproj",
   "tests/backend/Core/MusicMetadataManager.Core.Tests.csproj",
   "tests/backend/Infrastructure/MusicMetadataManager.Infrastructure.Tests.csproj",
   "tests/backend/Host/MusicMetadataManager.Host.Tests.csproj",
@@ -36,12 +38,18 @@ schema = 1
 "source_roots" = ["src", "tests/backend"]
 
 [architecture]
-"edges" = { "src/Core/MusicMetadataManager.Core.csproj" = [
+"edges" = { "src/Application/MusicMetadataManager.Application.csproj" = [
+  "src/Core/MusicMetadataManager.Core.csproj",
+], "src/Core/MusicMetadataManager.Core.csproj" = [
 ], "src/Infrastructure/MusicMetadataManager.Infrastructure.csproj" = [
+  "src/Application/MusicMetadataManager.Application.csproj",
   "src/Core/MusicMetadataManager.Core.csproj",
 ], "src/Host/Plugin.csproj" = [
+  "src/Application/MusicMetadataManager.Application.csproj",
   "src/Core/MusicMetadataManager.Core.csproj",
   "src/Infrastructure/MusicMetadataManager.Infrastructure.csproj",
+], "tests/backend/Application/MusicMetadataManager.Application.Tests.csproj" = [
+  "src/Application/MusicMetadataManager.Application.csproj",
 ], "tests/backend/Core/MusicMetadataManager.Core.Tests.csproj" = [
   "src/Core/MusicMetadataManager.Core.csproj",
 ], "tests/backend/Infrastructure/MusicMetadataManager.Infrastructure.Tests.csproj" = [
@@ -49,7 +57,13 @@ schema = 1
 ], "tests/backend/Host/MusicMetadataManager.Host.Tests.csproj" = [
   "src/Host/Plugin.csproj",
 ] }
-"forbidden" = { "src/Core" = [
+"forbidden" = { "src/Application" = [
+  "MediaBrowser.",
+  "Jellyfin.",
+  "Plugin.Instance",
+  "System.Net.Http",
+  "System.IO.File",
+], "src/Core" = [
   "Microsoft.Data.Sqlite",
   "MediaBrowser.",
   "Jellyfin.",
@@ -85,7 +99,7 @@ schema = 1
 "groups" = "tests/browser/groups.json"
 
 [source]
-"roots" = ["src", "frontend", "scripts", "tests", "docs", ".github"]
+"roots" = ["src", "frontend", "tests", "docs", ".github"]
 
 [validation]
 "groups" = [
@@ -251,7 +265,7 @@ schema = 1
   [
     "{python}",
     "-m",
-    "scripts.checks.architecture",
+    "jellyfin_plugin_toolkit.checks.architecture",
   ],
   [
     "{python}",
@@ -304,7 +318,10 @@ schema = 1
   { "source" = "NOTICE" },
   { "source" = "GPL-3.0.txt" },
 ]
-"licenses" = { "Jellyfin.Plugin.MusicMetadataManager.dll" = { "license" = "Apache-2.0", "notices" = [
+"licenses" = { "MusicMetadataManager.Application.dll" = { "license" = "Apache-2.0", "notices" = [
+  "LICENSE",
+  "GPL-3.0.txt",
+] }, "Jellyfin.Plugin.MusicMetadataManager.dll" = { "license" = "Apache-2.0", "notices" = [
   "LICENSE",
   "GPL-3.0.txt",
 ] }, "MusicMetadataManager.Core.dll" = { "license" = "Apache-2.0", "notices" = [

@@ -24,7 +24,7 @@ The initial 0.1.0 baseline uses schema 1 for JSON exports and includes correctio
 ./plugin validate --full
 ```
 
-See [development](docs/how-to/develop.md), [architecture](docs/explanation/architecture.md), [configuration and state](docs/reference/state.md), [administrator API](docs/reference/api.md), and [release preparation](docs/how-to/release.md).
+See [development](docs/how-to/develop.md), [architecture](docs/explanation/architecture.md), [configuration and state](docs/reference/state.md), [administrator API](docs/reference/api.md), [release preparation](docs/how-to/release.md), and the [capability preservation matrix](docs/reference/capabilities.md), and the [full sweep report](docs/reference/full-sweep.md).
 
 Original source is [Apache-2.0](LICENSE); [NOTICE](NOTICE) and [GPLv3 distribution material](GPL-3.0.txt) accompany compiled distributions.
 

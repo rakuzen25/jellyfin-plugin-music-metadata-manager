@@ -1,5 +1,13 @@
 import type { Command, CommandContext } from "./state.ts";
-import type { Features } from "./features.ts";
+import type { ControllerContracts } from "./controllerContracts.ts";
+import type { DashboardState } from "./dashboardState.ts";
+export interface NotificationsDependencies {
+    api: Pick<ControllerContracts["api"], "esc" | "page" | "perform" | "q">;
+    navigation: Pick<ControllerContracts["navigation"], "nativeButton" | "resumeEntry" | "showDestination">;
+    issueGuidance: Pick<ControllerContracts["issueGuidance"], "openIssuePanel">;
+    managerUi: Pick<ControllerContracts["managerUi"], "managerOpen">;
+    actions: Pick<ControllerContracts["actions"], "actions">;
+}
 type FeedbackKind = "success" | "warning" | "error" | "loading";
 interface OperationRecord {
     id: number;
@@ -21,7 +29,7 @@ interface Notice {
     hover: boolean;
     started?: number;
 }
-export function createNotifications(features: Features) {
+export function createNotifications(ports: NotificationsDependencies, session: DashboardState) {
     // Each operation owns feedback; presentation may move without re-announcing it.
     const notifications = (() => {
         let operation = 0,
@@ -32,16 +40,16 @@ export function createNotifications(features: Features) {
         const records = new Map<number, OperationRecord>(),
             notices = new Map<number, Notice>();
         const context = () => ({
-            screen: features.navigation.ui.screen,
-            view: features.navigation.ui.view,
-            item: features.navigation.ui.editor?.key || null,
+            screen: session.navigation.ui.screen,
+            view: session.navigation.ui.view,
+            item: session.navigation.ui.editor?.key || null,
         });
         const sameContext = (r: OperationRecord | undefined) => !!r && JSON.stringify(r.context) === JSON.stringify(context());
         function valid(id: number) {
             const r = records.get(id);
             return (
                 active &&
-                features.api.page.isConnected &&
+                ports.api.page.isConnected &&
                 !!r &&
                 r.generation === generation &&
                 !r.cancelled &&
@@ -66,8 +74,8 @@ export function createNotifications(features: Features) {
                 if (all || n.kind !== "loading" || !r?.command?.write || r.finished) remove(id);
             }
             for (const r of records.values()) if (!r.command?.write) r.cancelled = true;
-            features.api.q("mmoAnnouncements").textContent = "";
-            features.api.q("mmoAlertAnnouncements").textContent = "";
+            ports.api.q("mmoAnnouncements").textContent = "";
+            ports.api.q("mmoAlertAnnouncements").textContent = "";
             render();
             schedule();
         }
@@ -105,13 +113,13 @@ export function createNotifications(features: Features) {
                       ?.querySelector<HTMLButtonElement>("button:not(:disabled):not([data-notice-dismiss]):not([data-notice-return])")
                 : null;
             const fallback =
-                features.navigation.ui.screen === "review"
-                    ? features.api.q("mmoReviewBack")
-                    : features.navigation.ui.screen === "workspace"
-                      ? features.api.q("mmoWorkspaceBack")
-                      : features.navigation.ui.screen === "issue"
-                        ? features.api.q("mmoIssuePanelBack")
-                        : features.api.q("mmoNavigation").querySelector<HTMLElement>("[aria-current=page]");
+                session.navigation.ui.screen === "review"
+                    ? ports.api.q("mmoReviewBack")
+                    : session.navigation.ui.screen === "workspace"
+                      ? ports.api.q("mmoWorkspaceBack")
+                      : session.navigation.ui.screen === "issue"
+                        ? ports.api.q("mmoIssuePanelBack")
+                        : ports.api.q("mmoNavigation").querySelector<HTMLElement>("[aria-current=page]");
             const target =
                 sameContext(r) && button?.isConnected && !button.disabled && !button.closest<HTMLElement>("[hidden]") ? button : nearby || fallback;
             target?.focus({ preventScroll: true });
@@ -124,22 +132,22 @@ export function createNotifications(features: Features) {
             const label = r.command?.item ? r.command.item + " · " : "";
             node.innerHTML =
                 '<span class="mmo-feedback-text">' +
-                features.api.esc(label + text) +
+                ports.api.esc(label + text) +
                 "</span>" +
                 '<div class="mmo-feedback-actions">' +
-                (r.command?.origin ? features.navigation.nativeButton("Return", "data-notice-return") : "") +
-                features.navigation.nativeButton("Dismiss", 'data-notice-dismiss aria-label="Dismiss notification"') +
+                (r.command?.origin ? ports.navigation.nativeButton("Return", "data-notice-return") : "") +
+                ports.navigation.nativeButton("Dismiss", 'data-notice-dismiss aria-label="Dismiss notification"') +
                 "</div>";
             node.querySelector<HTMLElement>("[data-notice-dismiss]")!.onclick = () => dismiss(id);
             node.querySelector<HTMLElement>("[data-notice-return]")?.addEventListener("click", () => {
                 const origin = r.command!.origin;
-                features.api.perform(async () => {
-                    if (origin.issueKey && features.issues.issueItems.some((i) => i.key === origin.issueKey))
-                        await features.issueGuidance.openIssuePanel(features.issues.issueItems.find((i) => i.key === origin.issueKey));
-                    else if (origin.key && features.navigation.ui.locals.has(origin.key))
-                        await features.navigation.resumeEntry(features.navigation.ui.locals.get(origin.key)!);
-                    else if (origin.key?.startsWith("metadata:") && r.command!.itemId) await features.managerUi.managerOpen(r.command!.itemId);
-                    else await features.navigation.showDestination(origin.view, true, true);
+                ports.api.perform(async () => {
+                    if (origin.issueKey && session.issues.issueItems.some((i) => i.key === origin.issueKey))
+                        await ports.issueGuidance.openIssuePanel(session.issues.issueItems.find((i) => i.key === origin.issueKey));
+                    else if (origin.key && session.navigation.ui.locals.has(origin.key))
+                        await ports.navigation.resumeEntry(session.navigation.ui.locals.get(origin.key)!);
+                    else if (origin.key?.startsWith("metadata:") && r.command!.itemId) await ports.managerUi.managerOpen(r.command!.itemId);
+                    else await ports.navigation.showDestination(origin.view, true, true);
                 });
             });
             return node;
@@ -158,7 +166,7 @@ export function createNotifications(features: Features) {
             const r = records.get(id);
             if (
                 !active ||
-                !features.api.page.isConnected ||
+                !ports.api.page.isConnected ||
                 !r ||
                 r.generation !== generation ||
                 (r.dismissed && (r.dismissed !== "loading" || kind === "loading")) ||
@@ -191,7 +199,7 @@ export function createNotifications(features: Features) {
                 }),
             );
             notices.set(id, n);
-            const announcer = features.api.q(kind === "error" || kind === "warning" ? "mmoAlertAnnouncements" : "mmoAnnouncements");
+            const announcer = ports.api.q(kind === "error" || kind === "warning" ? "mmoAlertAnnouncements" : "mmoAnnouncements");
             announcer.textContent = (r.command?.item ? r.command.item + ": " : "") + text;
             render();
         }
@@ -205,9 +213,9 @@ export function createNotifications(features: Features) {
                 let anchor = command?.anchor;
                 if (command && !anchor?.isConnected && sameContext(r)) {
                     const button = command.button?.id
-                        ? features.api.q<HTMLButtonElement>(command.button.id)
-                        : [...features.api.page.querySelectorAll<HTMLButtonElement>("button")].find(
-                              (b) => features.actions.actions.describe(b).key === command.key,
+                        ? ports.api.q<HTMLButtonElement>(command.button.id)
+                        : [...ports.api.page.querySelectorAll<HTMLButtonElement>("button")].find(
+                              (b) => ports.actions.actions.describe(b).key === command.key,
                           );
                     if (button) {
                         command.button = button;
@@ -239,8 +247,8 @@ export function createNotifications(features: Features) {
                 n.node.querySelector<HTMLElement>("[data-notice-return]")?.removeAttribute("hidden");
                 fallback.push(n);
             }
-            const container = features.api.q("mmoMessage"),
-                body = features.api.q("mmoNoticeList");
+            const container = ports.api.q("mmoMessage"),
+                body = ports.api.q("mmoNoticeList");
             const floatingNodes = fallback.map((n) => n.node);
             for (const child of [...body.children]) if (!floatingNodes.includes(child as HTMLDivElement)) child.remove();
             floatingNodes.forEach((node, index) => {
@@ -248,13 +256,13 @@ export function createNotifications(features: Features) {
             });
             container.hidden = !fallback.length;
             if (fallback.length) {
-                const surface = [features.api.page, document.body, document.documentElement]
+                const surface = [ports.api.page, document.body, document.documentElement]
                     .map((el) => getComputedStyle(el).backgroundColor)
                     .find((c) => c !== "rgba(0, 0, 0, 0)" && c !== "transparent");
                 if (surface) container.style.backgroundColor = surface;
             }
-            features.api.q("mmoNoticeMore").hidden = fallback.length <= 1;
-            features.api.q("mmoNoticeMore").textContent = fallback.length + " operations";
+            ports.api.q("mmoNoticeMore").hidden = fallback.length <= 1;
+            ports.api.q("mmoNoticeMore").textContent = fallback.length + " operations";
             fallback.forEach((n, index) => {
                 n.node.hidden = index > 0 && container.dataset.expanded !== "true";
                 const bounds = n.node.getBoundingClientRect(),
@@ -262,7 +270,7 @@ export function createNotifications(features: Features) {
                 if (n.node.hidden || bounds.top >= dock.bottom || bounds.bottom <= dock.top) pause(n);
                 else expire(n);
             });
-            const footer = [...features.api.page.querySelectorAll<HTMLElement>(".mmo-editor-actions")].find(
+            const footer = [...ports.api.page.querySelectorAll<HTMLElement>(".mmo-editor-actions")].find(
                 (el) => !el.closest<HTMLElement>("[hidden]"),
             );
             const rect = footer?.getBoundingClientRect();
@@ -301,10 +309,10 @@ export function createNotifications(features: Features) {
             active = true;
             render();
         }
-        features.api.q("mmoNoticeMore").onclick = () => {
-            const el = features.api.q("mmoMessage");
+        ports.api.q("mmoNoticeMore").onclick = () => {
+            const el = ports.api.q("mmoMessage");
             el.dataset.expanded = el.dataset.expanded === "true" ? "false" : "true";
-            features.api.q("mmoNoticeMore").setAttribute("aria-expanded", el.dataset.expanded);
+            ports.api.q("mmoNoticeMore").setAttribute("aria-expanded", el.dataset.expanded);
             render();
         };
         window.addEventListener("scroll", schedule, true);
@@ -319,10 +327,10 @@ export function createNotifications(features: Features) {
         const routeChanged = () => (location.hash.toLowerCase().includes("configurationpage?name=musicmetadatamanager") ? enter() : leave());
         window.addEventListener("hashchange", routeChanged);
         window.addEventListener("popstate", routeChanged);
-        for (const event of ["pagehide", "viewhide", "viewbeforehide"]) features.api.page.addEventListener(event, leave);
-        for (const event of ["pageshow", "viewshow"]) features.api.page.addEventListener(event, enter);
+        for (const event of ["pagehide", "viewhide", "viewbeforehide"]) ports.api.page.addEventListener(event, leave);
+        for (const event of ["pageshow", "viewshow"]) ports.api.page.addEventListener(event, enter);
         const detached = new MutationObserver(() => {
-            if (!features.api.page.isConnected) {
+            if (!ports.api.page.isConnected) {
                 leave();
                 detached.disconnect();
                 document.removeEventListener("visibilitychange", visibilityChanged);

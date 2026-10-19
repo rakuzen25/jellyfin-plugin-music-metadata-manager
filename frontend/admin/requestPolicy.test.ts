@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { isWriteRequest } from "./requestPolicy.ts";
 import { OperationError, operationError } from "./errors.ts";
 test("read-only POST workflows do not acquire the configuration write queue", () => {
-    for (const route of ["preview", "manager/compare", "manager/images/cache", "manager/items/fixture/images/current"])
+    for (const route of ["preview", "manager/compare", "manager/images/cache", "manager/items/fixture/images/Primary/pin-current"])
         assert.equal(isWriteRequest(route, "POST"), false);
 });
 test("draft, activation, import and removal requests retain serialized write ownership", () => {

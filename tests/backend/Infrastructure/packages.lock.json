@@ -129,12 +129,19 @@
           "xunit.v3.runner.common": "[4.0.2]"
         }
       },
+      "musicmetadatamanager.application": {
+        "type": "Project",
+        "dependencies": {
+          "MusicMetadataManager.Core": "[0.1.0, )"
+        }
+      },
       "musicmetadatamanager.core": {
         "type": "Project"
       },
       "musicmetadatamanager.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "MusicMetadataManager.Application": "[0.1.0, )",
           "MusicMetadataManager.Core": "[0.1.0, )"
         }
       }

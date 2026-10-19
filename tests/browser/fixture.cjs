@@ -10,10 +10,10 @@ const emptyDocument = () => ({
     policies: [],
     policyDrafts: [],
 });
-async function open(page) {
+async function open(page, overrides = {}) {
     const errors = [],
         calls = [],
-        document = emptyDocument();
+        document = overrides.rules && typeof overrides.rules === "object" ? overrides.rules : emptyDocument();
     page.on("pageerror", (error) => errors.push(error.message));
     await page.addInitScript(() => {
         window.ApiClient = {
@@ -48,7 +48,43 @@ async function open(page) {
         }
         calls.push({ path: api, method: request.method(), body: request.postDataJSON() });
         let data;
-        if (api === "libraries") data = [{ id: "fixture-library", name: "Fixture music", paths: ["/fixture-media"] }];
+        if (Object.hasOwn(overrides, api)) data = typeof overrides[api] === "function" ? await overrides[api](request) : overrides[api];
+        else if (api === "libraries") data = [{ id: "fixture-library", name: "Fixture music", paths: ["/fixture-media"] }];
+        else if (api === "manager/fields")
+            data = [
+                "title",
+                "album",
+                "artists",
+                "albumArtists",
+                "discNumber",
+                "trackNumber",
+                "sortName",
+                "overview",
+                "genres",
+                "tags",
+                "premiereDate",
+                "endDate",
+                "productionYear",
+                "country",
+                "providerIds",
+                "lockedFields",
+                "isLocked",
+            ].map((name) => ({
+                name,
+                kind: ["artists", "albumArtists", "genres", "tags", "country", "lockedFields"].includes(name)
+                    ? "names"
+                    : ["discNumber", "trackNumber", "productionYear"].includes(name)
+                      ? "number"
+                      : name === "isLocked"
+                        ? "boolean"
+                        : name === "providerIds"
+                          ? "map"
+                          : "text",
+                required: ["title", "album", "artists", "albumArtists", "discNumber", "trackNumber", "isLocked"].includes(name),
+                core: ["title", "album", "artists", "albumArtists", "discNumber", "trackNumber"].includes(name),
+                advanced: ["providerIds", "lockedFields", "isLocked"].includes(name),
+                targets: ["track", "album", "artist"],
+            }));
         else if (api === "rules" || api === "export") data = document;
         else if (api === "status")
             data = {
