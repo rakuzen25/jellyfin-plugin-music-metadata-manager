@@ -8,7 +8,7 @@
       "musicmetadatamanager.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "MusicMetadataManager.Core": "[1.0.0, )"
+          "MusicMetadataManager.Core": "[0.6.1, )"
         }
       }
     }

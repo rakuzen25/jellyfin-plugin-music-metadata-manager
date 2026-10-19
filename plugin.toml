@@ -173,6 +173,18 @@ schema = 1
     "metadata",
     "tooling",
   ] },
+  { "name" = "prior-layout-and-fixtures", "patterns" = [
+    "core/**",
+    "web/**",
+    "tests/fixtures/**",
+  ], "groups" = [
+    "metadata",
+    "frontend",
+    "backend",
+    "tooling",
+    "workflow",
+    "artifacts",
+  ] },
 ]
 "job_names" = {}
 

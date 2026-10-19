@@ -36,3 +36,15 @@ class ConsumerTests(unittest.TestCase):
             self.assertNotIn("DEPLOYMENT.md", path.parts)
         self.assertIn(Path("tests/fixtures/previous-0.6.1-source.zip"), files)
         self.assertIn(Path("frontend/admin/config.ts"), files)
+
+    def test_current_inputs_and_removed_legacy_paths_are_classified(self):
+        from jellyfin_plugin_toolkit.ci.policy import classification
+
+        context = Context.load()
+        for path in [
+            *(p.as_posix() for p in source_files(context.root)),
+            "core/Rules.cs",
+            "web/config.html",
+        ]:
+            with self.subTest(path=path):
+                classification(path, context.root)
