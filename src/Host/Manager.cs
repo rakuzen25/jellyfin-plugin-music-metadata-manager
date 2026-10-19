@@ -6,13 +6,6 @@ using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 namespace MusicMetadataManager;
-public sealed class ManagedRecord {
- public Guid Id {get;set;}public Dictionary<string,JsonElement> Original {get;set;}=[];public Dictionary<string,JsonElement> Applied {get;set;}=[];
- public Dictionary<string,ImageDecision> OriginalImages {get;set;}=[];public Dictionary<string,ImageDecision> AppliedImages {get;set;}=[];
-}
-public sealed record HistoryEntry(DateTime Time,long Revision,Guid ItemId,string Operation,string[] Fields);
-public sealed class RestoreValues {public Dictionary<string,JsonElement> Fields {get;set;}=[];public Dictionary<string,ImageDecision> Images {get;set;}=[];}
-public sealed class Relinquish {public Guid ItemId {get;set;}public string[] Fields {get;set;}=[];public string[] Images {get;set;}=[];public bool RestoreOriginal {get;set;}}
 public sealed partial class Corrections {
  IEnumerable<MetadataPolicy> AllPolicies(Document d)=>d.Policies.Concat(d.Active.Where(x=>x.Metadata!=null).Select(ToPolicy));
  Guid[] ManagedTargets(Document d)=>AllPolicies(d).SelectMany(p=>p.IdentityId is null?new[]{p.ItemId}:d.Identities.Where(i=>i.Id==p.IdentityId).SelectMany(i=>new[]{i.ArtistId,i.PersonId})).Distinct().ToArray();
@@ -104,7 +97,7 @@ public sealed partial class Corrections {
   }
   return rows.ToArray();
  }
- public async Task QueueManaged(CancellationToken token){await gate.WaitAsync(token);try{foreach(var id in ManagedTargets(Doc).Concat(State.Restores.Keys).Distinct())Enqueue?.Invoke(id,false);}finally{gate.Release();}}
+ public async Task QueueManaged(CancellationToken token){await gate.WaitAsync(token);try{foreach(var id in ManagedTargets(Doc).Concat(State.Restores.Keys).Distinct())refreshQueue.Enqueue(id,false);}finally{gate.Release();}}
 
  public async Task SaveMetadataDraft(MetadataPolicy p,CancellationToken token){await gate.WaitAsync(token);try{var d=Codec.Clone(Doc);PutPolicy(d,p,true);ValidateDocument(d);d.Revision++;Persist(d);}finally{gate.Release();}}
  public async Task DeleteMetadataDraft(string id,CancellationToken token){await gate.WaitAsync(token);try{var d=Codec.Clone(Doc);if(d.PolicyDrafts.RemoveAll(x=>x.Id==id)==0)throw new ArgumentException("Metadata draft not found");d.Revision++;Persist(d);}finally{gate.Release();}}
@@ -150,7 +143,7 @@ public sealed partial class Corrections {
    if(originals.TryGetValue(item.Id,out var meta)){foreach(var f in operation.Fields){if(meta.Original.TryGetValue(f,out var value))fields[f]=value;if(State.Metadata.TryGetValue(item.Id,out var durable))durable.Applied.Remove(f);}foreach(var type in operation.Images){if(meta.OriginalImages.TryGetValue(type,out var original))images[type]=original;if(State.Metadata.TryGetValue(item.Id,out var durable))durable.AppliedImages.Remove(type);}}
    if(operation.RestoreOriginal){if(fields.Count!=operation.Fields.Length||images.Count!=operation.Images.Length)throw new ArgumentException("Original values are unavailable for one or more requested fields");State.Restores[item.Id]=new(){Fields=fields,Images=images};
 }
-   State.History.Add(new(DateTime.UtcNow,Doc.Revision+1,item.Id,operation.RestoreOriginal?"restore original":"stop managing",operation.Fields.Concat(operation.Images).ToArray()));
+   State.History.Add(new(clock.UtcNow,Doc.Revision+1,item.Id,operation.RestoreOriginal?"restore original":"stop managing",operation.Fields.Concat(operation.Images).ToArray()));
   }
   SaveState();return targets;
  }
@@ -180,7 +173,7 @@ public sealed partial class Corrections {
    if(registered.Length==1&&File.Exists(registered[0].Path)&&Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(registered[0].Path)))==decision.Hash)continue;
    item.RemoveImages(registered);await using var stream=File.OpenRead(sources.ImagePath(decision.Hash!));await providers.SaveImage(item,stream,decision.Mime!,nativeType,0,token);imageChanged=true;
   }
-  if(changed.Length>0||imageChanged){await library.UpdateItemAsync(item,item.GetParent()!,ItemUpdateType.MetadataEdit|(imageChanged?ItemUpdateType.ImageUpdate:ItemUpdateType.None),token);State.History.Add(new(DateTime.UtcNow,Doc.Revision,item.Id,restore!=null?"restore":"apply",changed.Select(x=>x.Key).Concat(imageChanged?targetImages.Keys:[]).ToArray()));}
+  if(changed.Length>0||imageChanged){await library.UpdateItemAsync(item,item.GetParent()!,ItemUpdateType.MetadataEdit|(imageChanged?ItemUpdateType.ImageUpdate:ItemUpdateType.None),token);State.History.Add(new(clock.UtcNow,Doc.Revision,item.Id,restore!=null?"restore":"apply",changed.Select(x=>x.Key).Concat(imageChanged?targetImages.Keys:[]).ToArray()));}
   State.Restores.Remove(item.Id);SaveState();return changed.Length>0||imageChanged?ItemUpdateType.MetadataEdit:ItemUpdateType.None;
  }
  object CleanupSnapshot(BaseItem item,Document d){
@@ -203,7 +196,7 @@ public sealed partial class Corrections {
     var snapshot=CleanupSnapshot(item,d);
     if(reviewed!=null&&CleanupFingerprint(item,snapshot)!=reviewed[id])throw new InvalidOperationException("Reviewed record type, dependencies or internal metadata changed; preview this record again.");
     var deps=inventory.Inspect(item,[],d);
-    recovery=Path.Combine(Plugin.Instance.StatePath,"recovery",DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffff")+"-"+id.ToString("N"));
+    recovery=Path.Combine(storage.DirectoryPath,"recovery",clock.UtcNow.ToString("yyyyMMddTHHmmssfffffff")+"-"+id.ToString("N"));
     Directory.CreateDirectory(recovery);
     File.WriteAllText(Path.Combine(recovery,"record.json"),JsonSerializer.Serialize(new{id,item.Name,item.Path,fields=NativeMetadata.Read(item),dependencies=deps},Codec.Json));
     foreach(var p in deps.MetadataPaths){
@@ -216,7 +209,7 @@ public sealed partial class Corrections {
     if(CleanupFingerprint(current,finalSnapshot)!=(reviewed?.GetValueOrDefault(id)??CleanupFingerprint(item,snapshot)))throw new InvalidOperationException("Reviewed record or internal metadata changed while retaining recovery material; preview this record again.");
     library.DeleteItem(current,new DeleteOptions{DeleteFileLocation=false,DeleteFromExternalProvider=false});
     deletionCompleted=true;
-    State.DeletedRecords[id]=current.Name;State.History.Add(new(DateTime.UtcNow,d.Revision,id,"delete verified orphan",[]));SaveState();
+    State.DeletedRecords[id]=current.Name;State.History.Add(new(clock.UtcNow,d.Revision,id,"delete verified orphan",[]));SaveState();
     results.Add(new(id,"deleted",null,recovery));
    }catch(Exception e){
     results.Add(new(id,deletionCompleted?"deleted":e is InvalidOperationException or ArgumentException?"blocked":"failed",e.Message,recovery));

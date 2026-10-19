@@ -1,15 +1,4 @@
 namespace MusicMetadataManager;
-
-public sealed class DraftTarget
-{
-    public string Kind { get; set; } = "";
-    public string Id { get; set; } = "";
-}
-public sealed class DraftDiscard
-{
-    public long ExpectedRevision { get; set; }
-    public DraftTarget[] Targets { get; set; } = [];
-}
 public sealed partial class Corrections
 {
     public async Task<object> DiscardDrafts(DraftDiscard input, CancellationToken token)

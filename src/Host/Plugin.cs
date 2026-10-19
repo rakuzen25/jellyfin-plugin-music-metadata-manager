@@ -28,6 +28,12 @@ public sealed class Registration : IPluginServiceRegistrator
 {
     public void RegisterServices(IServiceCollection services, IServerApplicationHost host)
     {
+        services.AddSingleton(_ => Plugin.Instance);
+        services.AddSingleton<IConfigurationStore, ConfigurationStore>();
+        services.AddSingleton<IPluginStorage>(_ => new PluginStorage(Plugin.Instance.StatePath));
+        services.AddSingleton<IJournalStore, JsonJournalStore>();
+        services.AddSingleton<IClock, SystemClock>();
+        services.AddSingleton<IRefreshQueue, RefreshQueue>();
         services.AddSingleton<AliasService>();
         services.AddHostedService(s=>s.GetRequiredService<AliasService>());
         services.AddSingleton<AliasAdapter>();

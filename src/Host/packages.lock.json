@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "musicmetadatamanager.core": {
+        "type": "Project"
+      },
+      "musicmetadatamanager.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "MusicMetadataManager.Core": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}

@@ -7,20 +7,18 @@ using MediaBrowser.Controller.Library;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 namespace MusicMetadataManager;
-public sealed record MusicUse(Guid Id,string Name,string Path,string Library,string[] Roles);
-public sealed record Dependencies(Guid Id,string Name,string Path,string Kind,MusicUse[] Music,MusicUse[] NonMusic,int Descendants,int LinkedReferences,int UserData,string[] Bindings,string[] Policies,string[] MissingScope,string Classification,bool CanEdit,bool CanDelete,string[] MetadataPaths);
-public sealed class Inventory(ILibraryManager library,IDbContextFactory<JellyfinDbContext> database,MediaBrowser.Controller.IServerApplicationPaths applicationPaths,ILogger<Inventory> logger) {
+public sealed class Inventory(ILibraryManager library,IDbContextFactory<JellyfinDbContext> database,MediaBrowser.Controller.IServerApplicationPaths applicationPaths,ILogger<Inventory> logger, IConfigurationStore configuration, IPluginStorage storage, IClock clock) {
  readonly object membershipGate=new();
  Dictionary<Guid,MusicRecordEvidence>? knownRecords;
- string MembershipPath=>Path.Combine(Plugin.Instance.StatePath,"music-records.json");
+ string MembershipPath=>Path.Combine(storage.DirectoryPath,"music-records.json");
  Dictionary<Guid,MusicRecordEvidence> KnownRecords=>knownRecords??=File.Exists(MembershipPath)?JsonSerializer.Deserialize<Dictionary<Guid,MusicRecordEvidence>>(File.ReadAllText(MembershipPath),Codec.Json)??throw new InvalidDataException("Empty music inventory evidence"):[];
  void SaveMembership(){try{var temp=MembershipPath+".tmp";File.WriteAllText(temp,JsonSerializer.Serialize(KnownRecords,Codec.Json));File.Move(temp,MembershipPath,true);}catch{knownRecords=null;throw;}}
- void Remember(BaseItem item,string reason){var type=item.GetType().FullName!;var path=item.Path??"";if(KnownRecords.TryGetValue(item.Id,out var old)&&old.NativeType==type&&old.Path==path)return;KnownRecords[item.Id]=new(type,path,reason,DateTime.UtcNow);}
+ void Remember(BaseItem item,string reason){var type=item.GetType().FullName!;var path=item.Path??"";if(KnownRecords.TryGetValue(item.Id,out var old)&&old.NativeType==type&&old.Path==path)return;KnownRecords[item.Id]=new(type,path,reason,clock.UtcNow);}
  public void RecoverMembership(Journal state){
   lock(membershipGate){
    var previous=Codec.Hash(KnownRecords);var deletedArtists=new HashSet<string>();
    // A recorded successful deletion plus its recovery snapshot establishes the old type.
-   var recovery=Path.Combine(Plugin.Instance.StatePath,"recovery");
+   var recovery=Path.Combine(storage.DirectoryPath,"recovery");
    if(Directory.Exists(recovery))foreach(var folder in Directory.EnumerateDirectories(recovery)){
     var file=Path.Combine(folder,"record.json");if(!File.Exists(file))continue;
     try{
@@ -42,7 +40,7 @@ public sealed class Inventory(ILibraryManager library,IDbContextFactory<Jellyfin
   var media=library.GetItemList(new InternalItemsQuery{Recursive=true,IncludeItemTypes=[BaseItemKind.Audio,BaseItemKind.MusicAlbum]}).Where(x=>Scope(x).Id!="").ToArray();
   var artists=library.GetItemList(new InternalItemsQuery{IncludeItemTypes=[BaseItemKind.MusicArtist]}).ToArray();
   var names=media.SelectMany(x=>library.GetPeople(x).Select(p=>IdentityEngine.Key(p.Name))).Concat(artists.SelectMany(x=>new[]{IdentityEngine.Key(x.Name),IdentityEngine.Key(Path.GetFileName((x.Path??"").TrimEnd('/')))})).ToHashSet();
-  var rules=Plugin.Instance.Configuration.Rules;var bound=rules.Identities.Concat(rules.IdentityDrafts).SelectMany(x=>x.Records).Concat(rules.Policies.Concat(rules.PolicyDrafts).Select(x=>x.ItemId)).ToHashSet();
+  var rules=configuration.Current;var bound=rules.Identities.Concat(rules.IdentityDrafts).SelectMany(x=>x.Records).Concat(rules.Policies.Concat(rules.PolicyDrafts).Select(x=>x.ItemId)).ToHashSet();
   var persons=library.GetItemList(new InternalItemsQuery{IncludeItemTypes=[BaseItemKind.Person]}).ToArray();
   lock(membershipGate){
    var previous=Codec.Hash(KnownRecords);
@@ -56,7 +54,7 @@ public sealed class Inventory(ILibraryManager library,IDbContextFactory<Jellyfin
   }
  }
  public Dependencies Inspect(BaseItem item,string[] scope,Document? document=null){
-  var doc=document??Plugin.Instance.Configuration.Rules;List<MusicUse> music=[],other=[];
+  var doc=document??configuration.Current;List<MusicUse> music=[],other=[];
   if(item is Audio or MusicAlbum){var lib=Scope(item).Id;if(lib!="")music.Add(new(item.Id,item.Name,item.Path??"",lib,[]));else other.Add(new(item.Id,item.Name,item.Path??"","",[]));}
   else {
    var identityNames=doc.Identities.Concat(doc.IdentityDrafts).Where(x=>x.Records.Contains(item.Id)).SelectMany(x=>x.Names);
@@ -100,7 +98,6 @@ public sealed class Inventory(ILibraryManager library,IDbContextFactory<Jellyfin
  public void EnsureWritable(BaseItem item,string[] libraries,Document? doc=null){var d=Inspect(item,libraries,doc);if(!d.CanEdit)throw new ArgumentException("This native record is global. Cover all music uses; non-music references make it read-only. Missing libraries: "+string.Join(",",d.MissingScope));}
  public BaseItem Item(Guid id)=>Records().FirstOrDefault(x=>x.Id==id)??throw new ArgumentException("Record is not in the music inventory");
  public Guid[] Targets(MetadataPolicy policy,Document? document=null){
-  if(policy.IdentityId is null)return [policy.ItemId];var identity=(document??Plugin.Instance.Configuration.Rules).Identities.SingleOrDefault(x=>x.Id==policy.IdentityId)??throw new ArgumentException("Active canonical identity not found");return new[]{identity.ArtistId,identity.PersonId}.Distinct().ToArray();
+  if(policy.IdentityId is null)return [policy.ItemId];var identity=(document??configuration.Current).Identities.SingleOrDefault(x=>x.Id==policy.IdentityId)??throw new ArgumentException("Active canonical identity not found");return new[]{identity.ArtistId,identity.PersonId}.Distinct().ToArray();
  }
 }
-public sealed record MusicRecordEvidence(string NativeType,string Path,string Reason,DateTime ObservedAt);

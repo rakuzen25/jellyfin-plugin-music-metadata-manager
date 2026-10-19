@@ -15,42 +15,9 @@ public sealed class Provider(Corrections corrections) : ICustomMetadataProvider<
     public Task<ItemUpdateType> FetchAsync(Audio item, MetadataRefreshOptions options, CancellationToken token) => corrections.Correct(item, false, token);
     public Task<ItemUpdateType> FetchAsync(MusicAlbum item, MetadataRefreshOptions options, CancellationToken token) => corrections.Correct(item, false, token);
 }
-public sealed class Worker(Corrections corrections, ILibraryManager library, IProviderManager providers, ILogger<Worker> logger) : BackgroundService
+public sealed class Worker(Corrections corrections, ILibraryManager library, IProviderManager providers, ILogger<Worker> logger, IRefreshQueue refreshQueue) : BackgroundService
 {
-    readonly Channel<Guid> queue = Channel.CreateUnbounded<Guid>(new() { SingleReader = true }); readonly Dictionary<Guid, bool> pending = []; readonly object queueGate = new(); int inFlight;
-    public void Queue(Guid id, bool refresh)
-    {
-        lock (queueGate)
-        {
-            if (pending.TryGetValue(id, out var prior))
-                pending[id] = prior || refresh;
-            else
-            {
-                pending[id] = refresh;
-                queue.Writer.TryWrite(id);
-            }
-        }
-    }
-    int Count()
-    {
-        lock (queueGate)
-            return pending.Count + inFlight;
-    }
-    bool Take(Guid id, out bool refresh)
-    {
-        lock (queueGate)
-        {
-            if (!pending.Remove(id, out refresh))
-                return false;
-            inFlight++;
-            return true;
-        }
-    }
-    void Finished()
-    {
-        lock (queueGate)
-            inFlight--;
-    }
+    public void Queue(Guid id, bool refresh) => refreshQueue.Enqueue(id, refresh);
     void Completed(object? sender, Jellyfin.Data.Events.GenericEventArgs<BaseItem> e)
     {
         if (e.Argument is Audio or MusicAlbum or MusicArtist or MediaBrowser.Controller.Entities.Person)
@@ -58,18 +25,16 @@ public sealed class Worker(Corrections corrections, ILibraryManager library, IPr
     }
     protected override async Task ExecuteAsync(CancellationToken token)
     {
-        corrections.Enqueue = Queue;
-        corrections.QueueCount = Count;
         providers.RefreshCompleted += Completed;
         try
         {
             foreach (var id in await corrections.Recovery(token))
                 Queue(id, true);
             await corrections.ApplyAll(token);
-            await foreach (var id in queue.Reader.ReadAllAsync(token))
+            await foreach (var work in refreshQueue.ReadAllAsync(token))
             {
-                if (!Take(id, out var refresh))
-                    continue;
+                var id = work.Id;
+                var refresh = work.Refresh;
                 try
                 {
                     if (refresh)
@@ -85,11 +50,11 @@ public sealed class Worker(Corrections corrections, ILibraryManager library, IPr
                         await corrections.Correct(parent, true, token);
                 }
                 catch (Exception e) when (e is not OperationCanceledException) { await corrections.Error(id, e); }
-                finally { Finished(); }
+                finally { refreshQueue.Complete(); }
             }
         }
         catch (Exception e) when (e is not OperationCanceledException) { logger.LogError(e, "Metadata correction worker stopped; check configuration and state."); }
-        finally { providers.RefreshCompleted -= Completed; corrections.Enqueue = null; }
+        finally { providers.RefreshCompleted -= Completed; }
     }
 }
 public sealed class ScanCorrection(Corrections corrections) : ILibraryPostScanTask

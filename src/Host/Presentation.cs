@@ -1,11 +1,6 @@
 using MediaBrowser.Controller.Entities.Audio;
 using System.Text.Json;
 namespace MusicMetadataManager;
-
-// Administrator presentation projections. These never change the native library.
-public sealed record NavigationPath(string Key,string Path,string Kind);
-public sealed record InventoryRecord(Guid Id,string Name,string Kind,string? Path,bool Representative);
-public sealed record InventoryEntry(Guid Id,string Name,string Kind,string? Path,string Library,bool Managed,string? IdentityId,string[] Aliases,InventoryRecord[] Records,bool MissingBinding);
 public sealed partial class Corrections {
  public async Task<object> NativeNavigation(string? ids,string? rules,string? paths,CancellationToken token){
   var requestedIds=(ids??"").Split(',',StringSplitOptions.RemoveEmptyEntries);

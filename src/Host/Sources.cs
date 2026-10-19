@@ -7,20 +7,14 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
 namespace MusicMetadataManager;
-public sealed class CompareRequest {
- public Guid ItemId {get;set;} public string Provider {get;set;}="";public string Key {get;set;}="";public string RecordId {get;set;}="";public bool Confirm {get;set;}
-}
-public sealed class ImageCacheRequest {
- public Guid ItemId {get;set;} public string SnapshotId {get;set;}="";public string Url {get;set;}="";public string Type {get;set;}="Primary";
-}
 public sealed record Comparison(Guid ItemId,SourceSnapshot Snapshot,RemoteImageInfo[] Images,string[] Notes);
 public sealed class SourceState {public System.Collections.Concurrent.ConcurrentDictionary<string,Comparison> Comparisons {get;set;}=[];}
-public sealed class Sources(ILibraryManager library,IProviderManager providers,IHttpClientFactory http,MediaBrowser.Model.IO.IFileSystem files,MediaBrowser.Controller.Drawing.IImageProcessor imageProcessor) {
+public sealed class Sources(ILibraryManager library,IProviderManager providers,IHttpClientFactory http,MediaBrowser.Model.IO.IFileSystem files,MediaBrowser.Controller.Drawing.IImageProcessor imageProcessor, IPluginStorage storage, IClock clock) {
  readonly SemaphoreSlim gate=new(1,1);DateTime lastMusicBrainz;SourceState? state;
- string PathName=>Path.Combine(Plugin.Instance.StatePath,"sources.json");
+ string PathName=>Path.Combine(storage.DirectoryPath,"sources.json");
  SourceState State=>state??=File.Exists(PathName)?JsonSerializer.Deserialize<SourceState>(File.ReadAllText(PathName),Codec.Json)!:new();
  void Save(){File.WriteAllText(PathName+".tmp",JsonSerializer.Serialize(State,Codec.Json));File.Move(PathName+".tmp",PathName,true);}
- public string ImagePath(string hash)=>Path.Combine(Plugin.Instance.StatePath,"pins",hash.ToUpperInvariant());
+ public string ImagePath(string hash)=>Path.Combine(storage.DirectoryPath,"pins",hash.ToUpperInvariant());
  public bool HasImage(string hash){var path=ImagePath(hash);if(!File.Exists(path)||Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))!=hash.ToUpperInvariant())return false;try{ValidateImage(path);return true;}catch(ArgumentException){return false;}}
  void ValidateImage(string path){try{var size=imageProcessor.GetImageDimensions(path);if(size.Width<=0||size.Height<=0)throw new ArgumentException("Invalid image dimensions");}catch(Exception e){throw new ArgumentException("Artwork could not be decoded; select a valid JPEG, PNG or WebP image",e);}}
  public object Providers(BaseItem item){
@@ -56,7 +50,7 @@ public sealed class Sources(ILibraryManager library,IProviderManager providers,I
    var configured=NativeMetadata.Read(fetched!);var offered=new Dictionary<string,JsonElement>(configured);List<string> notes=["Provider metadata was fetched into a detached result; no native refresh or Identify was run.","Empty provider values are unavailable; approving an empty value is a separate manual decision."];
    if(request.Provider=="MusicBrainz"){
     if(!Guid.TryParse(request.RecordId,out _))throw new ArgumentException("MusicBrainz IDs must be GUIDs");
-    var delay=lastMusicBrainz.AddSeconds(1.1)-DateTime.UtcNow;if(delay>TimeSpan.Zero)await Task.Delay(delay,timeout.Token);lastMusicBrainz=DateTime.UtcNow;
+    var delay=lastMusicBrainz.AddSeconds(1.1)-clock.UtcNow;if(delay>TimeSpan.Zero)await Task.Delay(delay,timeout.Token);lastMusicBrainz=clock.UtcNow;
     var client=http.CreateClient();using var msg=new HttpRequestMessage(HttpMethod.Get,"https://musicbrainz.org/ws/2/"+(item is MusicAlbum?"release/":"artist/")+Uri.EscapeDataString(request.RecordId)+"?fmt=json");msg.Headers.UserAgent.ParseAdd("MusicMetadataManager/0.3.0 (https://github.com/jellyfin/jellyfin)");
     using var response=await client.SendAsync(msg,timeout.Token);response.EnsureSuccessStatusCode();using var raw=JsonDocument.Parse(await response.Content.ReadAsStreamAsync(timeout.Token));
     if(raw.RootElement.TryGetProperty("name",out var name))offered["title"]=name.Clone();else if(raw.RootElement.TryGetProperty("title",out name))offered["title"]=name.Clone();
@@ -69,8 +63,8 @@ public sealed class Sources(ILibraryManager library,IProviderManager providers,I
    }
    List<RemoteImageInfo> images=[];
    foreach(var source in providers.GetImageProviders(detached,new ImageRefreshOptions(new DirectoryService(files))).OfType<IRemoteImageProvider>().Where(x=>x.Name==request.Provider))images.AddRange(await source.GetImages(detached,timeout.Token));
-   var binding=new SourceBinding{Provider=request.Provider,Key=request.Key,RecordId=request.RecordId,ConfirmedAt=DateTime.UtcNow};
-   var snapshot=new SourceSnapshot{Binding=binding,RetrievedAt=DateTime.UtcNow,Configured=configured,Offered=offered};
+   var binding=new SourceBinding{Provider=request.Provider,Key=request.Key,RecordId=request.RecordId,ConfirmedAt=clock.UtcNow};
+   var snapshot=new SourceSnapshot{Binding=binding,RetrievedAt=clock.UtcNow,Configured=configured,Offered=offered};
    var comparison=new Comparison(item.Id,snapshot,images.ToArray(),notes.ToArray());State.Comparisons[snapshot.Id]=comparison;Save();return comparison;
   }finally{gate.Release();}
  }

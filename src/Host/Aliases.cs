@@ -17,7 +17,7 @@ namespace MusicMetadataManager;
 
 public sealed record AliasMember(Guid Id,string Library,string[] Artists,string[] AlbumArtists,Guid ParentId,bool Album);
 public sealed record AliasView(ArtistIdentity Identity,AliasMember[] Members);
-public sealed class AliasService(ILibraryManager library,IUserManager users,IUserDataManager userData,IProviderManager providers,IHttpClientFactory http,ILogger<AliasService> logger):IHostedService
+public sealed class AliasService(ILibraryManager library,IUserManager users,IUserDataManager userData,IProviderManager providers,IHttpClientFactory http,ILogger<AliasService> logger, IConfigurationStore configuration, IClock clock):IHostedService
 {
  readonly object cacheGate=new();readonly SemaphoreSlim favoriteGate=new(1,1);
  long generation; (long Generation,long Revision,AliasMember[] Members)? cache;
@@ -51,7 +51,7 @@ public sealed class AliasService(ILibraryManager library,IUserManager users,IUse
  {
   lock(cacheGate)
   {
-   var revision=Plugin.Instance.Configuration.Rules.Revision;var g=Interlocked.Read(ref generation);
+   var revision=configuration.Current.Revision;var g=Interlocked.Read(ref generation);
    if(cache is { } prior&&prior.Generation==g&&prior.Revision==revision)return prior.Members;
    var folders=library.GetVirtualFolders().Where(x=>x.CollectionType?.ToString().Equals("music",StringComparison.OrdinalIgnoreCase)==true).SelectMany(x=>x.Locations.Select(p=>(Id:x.ItemId,Path:p.TrimEnd('/')+"/"))).OrderByDescending(x=>x.Path.Length).ToArray();
    var items=library.GetItemList(new InternalItemsQuery{Recursive=true,IncludeItemTypes=[BaseItemKind.Audio,BaseItemKind.MusicAlbum]});
@@ -68,7 +68,7 @@ public sealed class AliasService(ILibraryManager library,IUserManager users,IUse
   library.ConfigureUserAccess(q,user);
   var accessible=library.GetItemList(q).Select(x=>x.Id).ToHashSet();
   var members=Members().Where(x=>accessible.Contains(x.Id)).ToArray();
-  return (identities??Plugin.Instance.Configuration.Rules.Identities).Select(identity=>{
+  return (identities??configuration.Current.Identities).Select(identity=>{
    var direct=members.Where(x=>identity.Libraries.Contains(x.Library)&&x.Artists.Concat(x.AlbumArtists).Any(n=>IdentityEngine.Matches(identity,n))).ToArray();
    var parents=direct.Where(x=>!x.Album).Select(x=>x.ParentId).ToHashSet();
    return new AliasView(Codec.Clone(identity),members.Where(x=>direct.Any(d=>d.Id==x.Id)||x.Album&&parents.Contains(x.Id)).ToArray());
@@ -128,7 +128,7 @@ public sealed class AliasService(ILibraryManager library,IUserManager users,IUse
   finally{favoriteGate.Release();}
  }
  void Report(string message){errors.Enqueue(message);while(errors.Count>50)errors.TryDequeue(out _);logger.LogError("{AliasError}",message);}
- public object Status()=>new{generation=Interlocked.Read(ref generation),errors=errors.ToArray(),bindings=Reports(library,Plugin.Instance.Configuration.Rules.Identities)};
+ public object Status()=>new{generation=Interlocked.Read(ref generation),errors=errors.ToArray(),bindings=Reports(library,configuration.Current.Identities)};
  public object Unresolved(User user,IDtoService dto)
  {
   var views=Views(user);var query=new InternalItemsQuery(user){Recursive=true,IncludeItemTypes=[BaseItemKind.Audio,BaseItemKind.MusicAlbum]};library.ConfigureUserAccess(query,user);
@@ -154,7 +154,7 @@ public sealed class AliasService(ILibraryManager library,IUserManager users,IUse
    bool Candidate(BaseItem record)=>IdentityEngine.Key(record.Name)==group.Key.Key||record.Path is not null&&IdentityEngine.Key(Path.GetFileName(record.Path.TrimEnd('/')))==group.Key.Key;
    var candidates=artists.Where(Candidate).Select(x=>new{id=x.Id,name=x.Name,match=IdentityEngine.Key(x.Name)==group.Key.Key?"name":"metadata-folder name"}).ToArray();
    var people=persons.Where(Candidate).Select(x=>new{id=x.Id,name=x.Name}).ToArray();
-   var identity=Plugin.Instance.Configuration.Rules.Identities.FirstOrDefault(x=>x.Libraries.Contains(group.Key.Library)&&IdentityEngine.Matches(x,credit));
+   var identity=configuration.Current.Identities.FirstOrDefault(x=>x.Libraries.Contains(group.Key.Library)&&IdentityEngine.Matches(x,credit));
    return new{credit,role=group.Key.Role,library=group.Key.Library,identityId=identity?.Id,reason=identity is not null?"Active identity needs binding review":candidates.Length>0?"Stored artist record does not resolve this credit":"No matching artist record found",artistCandidates=candidates,personCandidates=people,items=group.Select(x=>new{id=x.Member.Id,name=accessible[x.Member.Id].Name,path=accessible[x.Member.Id].Path,kind=x.Member.Album?"album":"track"}).DistinctBy(x=>x.id).OrderBy(x=>x.path).ToArray()};
   }).OrderBy(x=>x.credit).ThenBy(x=>x.role).ThenBy(x=>x.library).ToArray();
   return new{checkedItems=members.Length,unresolvedCredits=rows.Length,rows,failures};
@@ -167,15 +167,15 @@ public sealed class AliasService(ILibraryManager library,IUserManager users,IUse
   await suggestionGate.WaitAsync(token);
   try
   {
-   if(suggestionCache.TryGetValue(mbid,out var cached)&&DateTime.UtcNow-cached.Time<TimeSpan.FromHours(24))return cached.Data;
-   var delay=lastSuggestionCall.AddSeconds(1.1)-DateTime.UtcNow;if(delay>TimeSpan.Zero)await Task.Delay(delay,token);
-   lastSuggestionCall=DateTime.UtcNow;
+   if(suggestionCache.TryGetValue(mbid,out var cached)&&clock.UtcNow-cached.Time<TimeSpan.FromHours(24))return cached.Data;
+   var delay=lastSuggestionCall.AddSeconds(1.1)-clock.UtcNow;if(delay>TimeSpan.Zero)await Task.Delay(delay,token);
+   lastSuggestionCall=clock.UtcNow;
    using var timeout=CancellationTokenSource.CreateLinkedTokenSource(token);timeout.CancelAfter(TimeSpan.FromSeconds(15));
    var client=http.CreateClient();client.DefaultRequestHeaders.UserAgent.ParseAdd("MusicMetadataManager/0.2.0 (https://jellyfin.org; local artist alias editor)");
    using var response=await client.GetAsync("https://musicbrainz.org/ws/2/artist/"+mbid+"?inc=aliases&fmt=json",timeout.Token);response.EnsureSuccessStatusCode();
    using var result=await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(timeout.Token),cancellationToken:timeout.Token);
    var data=new{source="MusicBrainz",artistId=mbid,name=result.RootElement.GetProperty("name").GetString(),reviewRequired=true,suggestions=result.RootElement.GetProperty("aliases").EnumerateArray().Select(x=>new{name=x.GetProperty("name").GetString(),locale=x.TryGetProperty("locale",out var l)?l.GetString():null,type=x.TryGetProperty("type",out var t)?t.GetString():null}).ToArray()};
-   suggestionCache[mbid]=(DateTime.UtcNow,data);return data;
+   suggestionCache[mbid]=(clock.UtcNow,data);return data;
   }
   finally{suggestionGate.Release();}
  }
