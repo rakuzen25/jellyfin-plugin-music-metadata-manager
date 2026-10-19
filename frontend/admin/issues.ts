@@ -373,7 +373,7 @@ export function createIssues(features: Features) {
                 });
             features.api.q("mmoRepairSkip").onclick = () =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     features.navigation.captureEditor();
                     repairQueue!.staged.delete(repairQueue!.tasks[repairQueue!.index]!.key);
                     repairQueue!.index++;
@@ -382,7 +382,7 @@ export function createIssues(features: Features) {
             features.api.q("mmoRepairReturn").onclick = () => features.api.perform(() => features.navigation.showDestination("issues"));
             features.api.q("mmoRepairQueueSummary").onclick = (e) =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     const revisit = (e.target as HTMLElement).closest<HTMLElement>("[data-repair-revisit]");
                     if (revisit) {
                         repairQueue!.index = Number(revisit.dataset.repairRevisit);

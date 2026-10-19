@@ -47,7 +47,7 @@ export function createBootstrap(features: Features) {
             });
             features.api.page.addEventListener("pageshow", () =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     if (features.api.page.dataset.mmoInitialized) return;
                     features.api.page.dataset.mmoInitialized = "true";
                     try {

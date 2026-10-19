@@ -1,6 +1,5 @@
 import type { MetadataPolicy, ArtistIdentity, Rule } from "./contracts.ts";
 import type { Editor, LocalEdit, NavigationState } from "./state.ts";
-import type { JsonValue } from "./contracts.ts";
 import type { Features } from "./features.ts";
 export function createNavigation(features: Features) {
     // Visit-local state. No draft or configuration is written by navigation.

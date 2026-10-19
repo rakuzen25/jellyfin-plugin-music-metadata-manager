@@ -27,3 +27,5 @@ JSON export uses schema 3 and includes correction rules, identities, metadata po
 See [development](docs/how-to/develop.md), [architecture](docs/explanation/architecture.md), [compatibility and rollback](docs/reference/compatibility.md), [administrator API](docs/reference/api.md), and [release preparation](docs/how-to/release.md).
 
 Original source is [Apache-2.0](LICENSE); [NOTICE](NOTICE) and [GPLv3 distribution material](GPL-3.0.txt) accompany compiled distributions.
+
+Use `pnpm check` (or `./plugin check`) to verify formatting and linting across the frontend, C# backend, Python tooling, configuration and docs. Use `pnpm format` to apply formatting, or add a target such as `frontend`, `backend`, `tooling` or `docs`. Run `./plugin bootstrap` first; checks never install dependencies. CI runs these same checks and requires the aggregate `validation / validate` result.

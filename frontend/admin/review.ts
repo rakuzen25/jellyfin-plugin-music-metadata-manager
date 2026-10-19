@@ -1,4 +1,4 @@
-import type { ImageDecision } from "./contracts.ts";
+import type { ImageDecision, FieldDecision } from "./contracts.ts";
 import type { MetadataPreview } from "./responses.ts";
 import type { Change } from "./contracts.ts";
 import { operationError } from "./errors.ts";
@@ -66,7 +66,7 @@ export function createReview(features: Features) {
         if (!proposal) return true;
         let original:
             | {
-                  fields: Record<string, import("./contracts.ts").FieldDecision>;
+                  fields: Record<string, FieldDecision>;
               }
             | undefined = features.api.doc.policies.find((p) => p.id === proposal.id);
         if (

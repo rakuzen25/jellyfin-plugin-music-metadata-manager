@@ -539,7 +539,7 @@ export function createIssueGuidance(features: Features) {
             renderIssueResults();
             if (pending && !timedOut) issueCheckTimer = setTimeout(() => void checkIssueResolution(), 5000);
         } catch (caughtError) {
-            const error = operationError(caughtError);
+            operationError(caughtError);
             if (serial !== issueCheckSerial || verification !== issueVerification) return;
             if (listSerial !== features.navigation.ui.issueRequest) {
                 issueCheckTimer = setTimeout(() => void checkIssueResolution(), 5000);

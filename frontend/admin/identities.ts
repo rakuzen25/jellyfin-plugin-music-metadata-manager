@@ -3,7 +3,7 @@ import type { ArtistIdentity } from "./contracts.ts";
 import type { Features } from "./features.ts";
 export function createIdentities(features: Features) {
     let renderIdentities: () => void;
-    let editIdentity = async function editIdentity(identity: Partial<ArtistIdentity> | null | undefined, nested = false) {
+    let editIdentity = async function editIdentity(identity: Partial<ArtistIdentity> | null | undefined, _nested = false) {
         features.rules.invalidateReview();
         const request = features.navigation.ui.request;
         const records = await features.api.api("identities/records");
@@ -87,7 +87,7 @@ export function createIdentities(features: Features) {
             features.api.q("mmoIdentityForm").addEventListener("submit", (e) => {
                 e.preventDefault();
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     const identity = identityForm();
                     features.api.identityEditingId = identity.id;
                     await features.rules.preview({ identityEdits: [identity] });

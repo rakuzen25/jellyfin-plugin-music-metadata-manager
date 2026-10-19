@@ -2,7 +2,7 @@ import { isWriteRequest } from "./requestPolicy.ts";
 import { OperationError, operationError, transportError } from "./errors.ts";
 import type { ApiResult } from "./responses.ts";
 import { requiredPage, lookup, optionalLookup } from "./dom.ts";
-import type { Document, View, ArtistIdentity } from "./contracts.ts";
+import type { Document, View } from "./contracts.ts";
 import type { Features } from "./features.ts";
 export function createApi(features: Features) {
     const page = requiredPage();
@@ -59,7 +59,9 @@ export function createApi(features: Features) {
             if (!detail && typeof error?.text === "function") {
                 try {
                     detail = await (typeof error.clone === "function" ? error.clone() : error).text!();
-                } catch {}
+                } catch {
+                    // The transport may not expose a readable error body; retain its status.
+                }
             }
             let text;
             if (detail) {

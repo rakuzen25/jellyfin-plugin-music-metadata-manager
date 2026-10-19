@@ -310,7 +310,10 @@ export function createNotifications(features: Features) {
         window.addEventListener("scroll", schedule, true);
         window.addEventListener("resize", schedule);
         const visibilityChanged = () => {
-            for (const n of notices.values()) document.hidden ? pause(n) : expire(n);
+            for (const n of notices.values()) {
+                if (document.hidden) pause(n);
+                else expire(n);
+            }
         };
         document.addEventListener("visibilitychange", visibilityChanged);
         const routeChanged = () => (location.hash.toLowerCase().includes("configurationpage?name=musicmetadatamanager") ? enter() : leave());

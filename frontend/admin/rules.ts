@@ -56,7 +56,7 @@ export function createRules(features: Features) {
                 "This review is outdated. Return to edit and preview the current changes before applying.";
         } else features.api.q("mmoPreviewArea").hidden = true;
     };
-    let edit = function edit(r: Partial<Rule> | null | undefined, nested = false) {
+    let edit = function edit(r: Partial<Rule> | null | undefined, _nested = false) {
         invalidateReview();
         features.api.q("mmoEditorState").textContent = r
             ? features.api.doc.active.some((x) => x.id === r.id)
@@ -132,7 +132,7 @@ export function createRules(features: Features) {
             features.api.q("mmoForm").addEventListener("submit", (e) => {
                 e.preventDefault();
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     const r = formRule();
                     features.api.editingId = r.id;
                     await preview({ edits: [r] });
@@ -240,7 +240,7 @@ export function createRules(features: Features) {
                 });
             features.api.q("mmoDownload").onclick = () =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     const url = URL.createObjectURL(
                         new Blob([JSON.stringify(await features.api.api("export"), null, 2)], {
                             type: "application/json",

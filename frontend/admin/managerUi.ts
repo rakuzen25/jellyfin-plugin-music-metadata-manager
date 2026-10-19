@@ -59,7 +59,7 @@ export function createManagerUi(features: Features) {
                 next: "mmoInventoryNext",
                 note: result.view === "grouped" ? "grouped artist identities" : "native records",
             });
-            let items = result.items;
+            const items = result.items;
             features.api.q("mmoInventoryRows").innerHTML =
                 items
                     .map((x) => {
@@ -682,20 +682,20 @@ export function createManagerUi(features: Features) {
             features.api.q("mmoInventoryFind").onclick = null;
             features.api.q("mmoInventoryPrev").onclick = () =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     managerStart = Math.max(0, managerStart - features.table.tablePageSize);
                     await managerInventory();
                 });
             features.api.q("mmoInventoryNext").onclick = () =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     managerStart += features.table.tablePageSize;
                     await managerInventory();
                 });
             for (const id of ["mmoInventoryLibrary", "mmoInventoryKind", "mmoInventoryView"])
                 features.api.q(id).onchange = () =>
                     features.api.perform(async (operation) => {
-                        const message = features.notifications.notifications.scope(operation);
+                        features.notifications.notifications.scope(operation);
                         managerStart = 0;
                         await managerInventory();
                     });
@@ -742,7 +742,7 @@ export function createManagerUi(features: Features) {
             };
             features.api.q("mmoManagerLibraries").onchange = () =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     readManagerFields();
                     features.rules.invalidateReview();
                     features.navigation.markDirty();
@@ -877,7 +877,7 @@ export function createManagerUi(features: Features) {
                 });
             features.api.q("mmoManagerPreview").onclick = () =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     const policy = readManagerFields();
                     await features.rules.preview({ metadataEdits: [policy] });
                 });
@@ -912,7 +912,7 @@ export function createManagerUi(features: Features) {
                 });
             features.api.q("mmoManagerBatchPreview").onclick = () =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     if (!managerBatch.length) throw Error("Add edits to the batch first.");
                     await features.rules.preview({ metadataEdits: managerBatch });
                 });
@@ -1004,7 +1004,7 @@ export function createManagerUi(features: Features) {
             features.api.q("mmoManagerIssueRefresh").onclick = () => features.api.perform(features.issues.refreshIssues);
             features.api.q("mmoManagerPolicies").onclick = (e) =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
                     if (!b) return;
                     if (b.dataset.policyDisable) return features.rules.preview({ disablePolicies: [b.dataset.policyDisable] });

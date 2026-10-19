@@ -254,7 +254,7 @@ export function createChanges(features: Features) {
             };
             features.api.q("mmoLocalEdits").onclick = (e) =>
                 features.api.perform(async (operation) => {
-                    const message = features.notifications.notifications.scope(operation);
+                    features.notifications.notifications.scope(operation);
                     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button");
                     if (!b) return;
                     if (b.dataset.localResume) await features.navigation.resumeEntry(features.navigation.ui.locals.get(b.dataset.localResume)!);
