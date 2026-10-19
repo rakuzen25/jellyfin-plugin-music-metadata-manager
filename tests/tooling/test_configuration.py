@@ -48,3 +48,21 @@ class ConsumerTests(unittest.TestCase):
         ]:
             with self.subTest(path=path):
                 classification(path, context.root)
+
+    def test_git_inventory_does_not_track_execution_reports(self):
+        import subprocess
+
+        root = Context.load().root
+        if not (root / ".git").exists():
+            return
+        names = subprocess.check_output(
+            ["git", "-C", str(root), "ls-files", "-z"], text=True
+        ).split("\0")
+        for name in names:
+            with self.subTest(path=name):
+                self.assertFalse(
+                    any(
+                        part.startswith("results-run.") or part == "TestResults"
+                        for part in Path(name).parts
+                    )
+                )
