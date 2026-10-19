@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+.build/
+dist/
+node_modules/
+.venv/
+runtime/
+artifacts/
+**/__pycache__/
+*.py[cod]

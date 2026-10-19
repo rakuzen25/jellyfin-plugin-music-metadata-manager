@@ -1,0 +1,175 @@
+#musicMetadataManagerPage .mmo-content {max-width:74em;margin:auto;}
+#musicMetadataManagerPage [hidden] {display:none!important;}
+#musicMetadataManagerPage .mmo-header h1 {margin-bottom:.35em;}
+#musicMetadataManagerPage .mmo-navigation {display:flex;gap:.4em;border-bottom:1px solid currentColor;margin:1em 0 1.6em;flex-wrap:wrap;}
+#musicMetadataManagerPage .mmo-navigation button {border-radius:0;padding:.9em 1em;}
+#musicMetadataManagerPage .mmo-navigation [aria-current],#musicMetadataManagerPage .mmo-navigation [aria-selected=true] {border-bottom:3px solid var(--jf-palette-primary-main,currentColor);font-weight:700;}
+#musicMetadataManagerPage .mmo-search {display:flex;align-items:end;gap:1em;flex-wrap:wrap;}
+#musicMetadataManagerPage .mmo-search .inputContainer,#musicMetadataManagerPage .mmo-search .selectContainer {margin-bottom:0;flex:1 1 10em;min-width:0;}
+#musicMetadataManagerPage .mmo-search .mmo-search-text {flex:3 1 18em;}
+#musicMetadataManagerPage .mmo-actions {display:flex;gap:.5em;align-items:center;flex-wrap:wrap;margin:1em 0;}
+#musicMetadataManagerPage .mmo-row {border-bottom:1px solid color-mix(in srgb,currentColor 24%,transparent);padding:1em 0;display:flex;gap:1em;align-items:start;}
+#musicMetadataManagerPage .mmo-row-main {flex:1;min-width:0;}
+#musicMetadataManagerPage .mmo-row-main>button {text-align:start;padding:.3em 0;font-weight:600;}
+#musicMetadataManagerPage .mmo-row p {margin:.4em 0;}
+#musicMetadataManagerPage .mmo-row-actions {display:flex;gap:.4em;align-items:start;flex-wrap:wrap;}
+#musicMetadataManagerPage .mmo-row-actions details>div {display:flex;flex-direction:column;align-items:start;}
+#musicMetadataManagerPage details {margin:.6em 0;}
+#musicMetadataManagerPage summary {cursor:pointer;padding:.5em 0;}
+#musicMetadataManagerPage .mmo-fields {max-width:55em;}
+#musicMetadataManagerPage .mmo-field {padding:.8em 0;border-bottom:1px solid color-mix(in srgb,currentColor 20%,transparent);}
+#musicMetadataManagerPage .mmo-field .inputContainer {margin-bottom:.5em;}
+#musicMetadataManagerPage .mmo-field-status {font-size:.9em;}
+#musicMetadataManagerPage .mmo-field-actions {display:flex;gap:.3em;flex-wrap:wrap;}
+#musicMetadataManagerPage .mmo-field-actions button {font-size:.9em;}
+#musicMetadataManagerPage .mmo-item-heading {display:flex;gap:1em;align-items:center;margin:1em 0;}
+#musicMetadataManagerPage .mmo-item-heading img {width:5em;height:5em;object-fit:contain;border-radius:.25em;}
+#musicMetadataManagerPage .mmo-item-heading h2 {margin:0;}
+#musicMetadataManagerPage .mmo-image-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19em),1fr));gap:1em;}
+#musicMetadataManagerPage .mmo-image-card {padding:1em;border:1px solid color-mix(in srgb,currentColor 20%,transparent);border-radius:.3em;}
+#musicMetadataManagerPage .mmo-image-pair {display:flex;gap:1em;flex-wrap:wrap;}
+#musicMetadataManagerPage .mmo-image-pair figure {margin:0;flex:1;min-width:7em;}
+#musicMetadataManagerPage .mmo-artwork {display:block;width:100%;height:10em;object-fit:contain;margin:.6em 0;}
+#musicMetadataManagerPage .mmo-editor-actions {position:sticky;bottom:0;background:var(--jf-palette-background-default,inherit);padding:1em 0;border-top:1px solid currentColor;z-index:1;}
+#musicMetadataManagerPage .mmo-diff {display:grid;grid-template-columns:1fr 1fr;gap:1em;}
+#musicMetadataManagerPage .mmo-diff>div {min-width:0;}
+#musicMetadataManagerPage .mmo-warning {border-left:3px solid currentColor;padding:.6em 1em;}
+#musicMetadataManagerPage #mmoMessage {padding:.7em 1em;border:1px solid currentColor;border-radius:.3em;white-space:pre-wrap;}
+#musicMetadataManagerPage .mmo-sr-only {position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}
+#musicMetadataManagerPage .mmo-editor-form {max-width:55em;}
+#musicMetadataManagerPage .mmo-editor-form>label {display:block;margin:1.4em 0;}
+#musicMetadataManagerPage textarea,#musicMetadataManagerPage select,#musicMetadataManagerPage input {max-width:100%;box-sizing:border-box;}
+#musicMetadataManagerPage textarea {width:100%;font:inherit;}
+#musicMetadataManagerPage .mmo-value,#musicMetadataManagerPage p,#musicMetadataManagerPage li,#musicMetadataManagerPage pre {overflow-wrap:anywhere;}
+#musicMetadataManagerPage pre {white-space:pre-wrap;max-width:100%;}
+#musicMetadataManagerPage table {width:100%;border-collapse:collapse;}
+#musicMetadataManagerPage th,#musicMetadataManagerPage td {text-align:start;padding:.7em .4em;border-bottom:1px solid color-mix(in srgb,currentColor 20%,transparent);}
+#musicMetadataManagerPage .mmo-track-number {white-space:nowrap;}
+@media(max-width:650px) {
+ #musicMetadataManagerPage .mmo-search {display:block;}
+ #musicMetadataManagerPage .mmo-search>div {margin-bottom:1em!important;}
+ #musicMetadataManagerPage .mmo-row {flex-wrap:wrap;gap:.4em;}
+ #musicMetadataManagerPage .mmo-row-main {flex-basis:100%;}
+ #musicMetadataManagerPage .mmo-diff {grid-template-columns:1fr;}
+ #musicMetadataManagerPage .mmo-editor-actions {position:static;}
+ #musicMetadataManagerPage .mmo-navigation {gap:0;}
+ #musicMetadataManagerPage .mmo-navigation button {padding:.8em .65em;}
+}
+#musicMetadataManagerPage .mmo-list .mmo-row {padding:.6em 0;}
+#musicMetadataManagerPage .mmo-list details {margin:.2em 0;}
+#musicMetadataManagerPage .mmo-list summary {padding:.2em 0;}
+#musicMetadataManagerPage .emby-button:focus-visible {outline:2px solid currentColor!important;outline-offset:3px;}
+#musicMetadataManagerPage .mmo-field>details>summary {font-size:.9em;}
+#musicMetadataManagerPage .mmo-field-status {margin:.25em 0;}
+#musicMetadataManagerPage label.inputLabel:empty {display:none;}
+/* Compact list density; menu actions never participate in row height. */
+#musicMetadataManagerPage .mmo-list .mmo-row {padding:.5em 0;gap:.65em;align-items:center;}
+#musicMetadataManagerPage .mmo-list .mmo-row p {margin:.15em 0;line-height:1.35;font-size:.9em;}
+#musicMetadataManagerPage .mmo-row-actions {align-items:center;flex-wrap:nowrap;flex-shrink:0;}
+#musicMetadataManagerPage .mmo-row-actions .emby-button {margin:0;padding:.4em .65em;min-width:0;}
+#musicMetadataManagerPage [data-actions-open] {font-size:1.4em;line-height:1;width:1.8em;}
+#musicMetadataManagerPage .mmo-list details {margin:.1em 0;}
+#musicMetadataManagerPage .mmo-list summary {padding:.1em 0;font-size:.85em;}
+#musicMetadataManagerPage th,#musicMetadataManagerPage td {padding:.4em .4em;vertical-align:top;}
+#musicMetadataManagerPage .mmo-row-menu {position:fixed;inset:auto;margin:0;padding:.5em;min-width:12em;max-width:min(22em,calc(100vw - 2em));max-height:calc(100vh - 2em);overflow:auto;border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:.3em;box-shadow:0 .3em 1.2em color-mix(in srgb,currentColor 15%,transparent);}
+#musicMetadataManagerPage #mmoRowMenuTitle {padding:.35em .55em .6em;font-size:.85em;overflow-wrap:anywhere;}
+#musicMetadataManagerPage #mmoRowMenuButtons {display:flex;flex-direction:column;}
+#musicMetadataManagerPage #mmoRowMenuButtons button {text-align:start;margin:0;padding:.65em .55em;white-space:normal;}
+@media(max-width:650px) {
+ #musicMetadataManagerPage .mmo-list [data-change-type] {flex-wrap:nowrap;}
+ #musicMetadataManagerPage .mmo-list [data-change-type] .mmo-row-main {flex-basis:auto;}
+}
+
+#musicMetadataManagerPage #mmoChangesBadge:not(:empty) {margin-inline-start:.45em;font-size:.85em;font-weight:400;}
+#musicMetadataManagerPage .mmo-row-select {flex:0 0 auto;position:relative;margin:.3em .4em .3em .2em;}
+#musicMetadataManagerPage .mmo-bulk-toolbar {border:1px solid color-mix(in srgb,currentColor 20%,transparent);padding:.5em .7em;border-radius:.3em;}
+#musicMetadataManagerPage .mmo-bulk-toolbar .mmo-actions {margin:.4em 0;}
+#musicMetadataManagerPage .mmo-bulk-selection {margin:.7em 0;}
+#musicMetadataManagerPage .mmo-bulk-toolbar button {white-space:normal;max-width:100%;box-sizing:border-box;text-align:start;}
+@media(max-width:650px) {
+ #musicMetadataManagerPage .mmo-bulk-toolbar .mmo-actions {align-items:stretch;}
+ #musicMetadataManagerPage .mmo-bulk-toolbar button {width:100%;}
+}
+#musicMetadataManagerPage .mmo-row-select {width:2em;max-width:2em;min-width:0;box-sizing:border-box;margin:0;}
+/* Shared semantic tables for Library, Rules and Issues. */
+#musicMetadataManagerPage .mmo-data-table {table-layout:fixed;width:100%;}
+#musicMetadataManagerPage .mmo-data-table .mmo-col-select {width:2.5em;}
+#musicMetadataManagerPage .mmo-data-table .mmo-col-type {width:18%;}
+#musicMetadataManagerPage .mmo-data-table .mmo-col-status {width:25%;}
+#musicMetadataManagerPage .mmo-data-table .mmo-col-actions {width:11em;}
+#musicMetadataManagerPage .mmo-data-table .mmo-row {display:table-row;}
+#musicMetadataManagerPage .mmo-data-table th {font-size:.9em;font-weight:600;}
+#musicMetadataManagerPage .mmo-data-table td {padding:.4em .4em;vertical-align:middle;overflow-wrap:break-word;}
+#musicMetadataManagerPage .mmo-data-table .mmo-row-main {min-width:0;}
+#musicMetadataManagerPage .mmo-data-table .mmo-row-main>strong {line-height:1.35;}
+#musicMetadataManagerPage .mmo-data-table .mmo-row-actions {justify-content:flex-end;}
+#musicMetadataManagerPage .mmo-data-table .mmo-row-actions button {white-space:nowrap;overflow-wrap:normal;word-break:normal;flex-shrink:0;}
+#musicMetadataManagerPage .mmo-data-table .mmo-row-select {margin:.2em 0;}
+#musicMetadataManagerPage .mmo-status-badge {display:inline-block;font-size:.85em;line-height:1.4;padding:.15em .5em;border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:.3em;max-width:100%;box-sizing:border-box;}
+#musicMetadataManagerPage .mmo-data-table .mmo-table-message td {padding:.5em .4em;}
+#musicMetadataManagerPage .mmo-data-table .mmo-table-message p {margin:.25em 0;}
+#musicMetadataManagerPage .mmo-data-table .mmo-row-main>strong {font-weight:500;}
+#musicMetadataManagerPage .mmo-row-description {font-size:.85em;overflow-wrap:anywhere;}
+#musicMetadataManagerPage .mmo-data-table details {margin:.25em 0 0;}
+#musicMetadataManagerPage .mmo-data-table details summary {font-size:.85em;}
+@media(max-width:650px) {
+ #musicMetadataManagerPage .mmo-data-table,#musicMetadataManagerPage .mmo-data-table tbody {display:block;width:100%;}
+ #musicMetadataManagerPage .mmo-data-table colgroup {display:none;}
+ #musicMetadataManagerPage .mmo-data-table thead {position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+ #musicMetadataManagerPage .mmo-data-table .mmo-row {display:grid;grid-template-columns:minmax(0,1fr);gap:.3em;padding:.65em 0;}
+ #musicMetadataManagerPage .mmo-data-table.mmo-table-selectable .mmo-row {grid-template-columns:2.75em minmax(0,1fr);}
+ #musicMetadataManagerPage .mmo-data-table td {display:block;padding:0;border:0;min-width:0;grid-column:1;}
+ #musicMetadataManagerPage .mmo-data-table.mmo-table-selectable td {grid-column:2;}
+ #musicMetadataManagerPage .mmo-data-table.mmo-table-selectable td.mmo-table-select {grid-column:1;grid-row:1 / span 4;}
+ #musicMetadataManagerPage .mmo-data-table td[data-label=Type]::before,#musicMetadataManagerPage .mmo-data-table td[data-label=Status]::before,#musicMetadataManagerPage .mmo-data-table td[data-label=Metadata]::before {content:attr(data-label) ": ";font-size:.85em;}
+ #musicMetadataManagerPage .mmo-data-table .mmo-row-actions {justify-content:flex-start;}
+ #musicMetadataManagerPage .mmo-data-table .mmo-row-actions button {min-height:2.75em;}
+ #musicMetadataManagerPage .mmo-data-table .mmo-row-select {width:2.75em;max-width:2.75em;min-height:2.75em;}
+ #musicMetadataManagerPage .mmo-data-table .mmo-table-message {display:block;}
+ #musicMetadataManagerPage .mmo-data-table .mmo-table-message td {padding:.65em 0;}
+}
+#musicMetadataManagerPage .mmo-table-footer {display:flex;justify-content:space-between;align-items:center;gap:.5em;flex-wrap:wrap;margin:.5em 0;}
+#musicMetadataManagerPage .mmo-table-footer p,#musicMetadataManagerPage .mmo-table-footer .mmo-actions {margin:.3em 0;}
+
+/* Editor overflow actions share the accessible popover used by list rows. */
+#musicMetadataManagerPage .mmo-editor-actions {align-items:center;gap:.4em;padding:.65em 0;}
+#musicMetadataManagerPage .mmo-editor-actions>button {margin:0;white-space:nowrap;}
+#musicMetadataManagerPage .mmo-editor-actions>[data-actions-open] {font-size:inherit;line-height:inherit;width:auto;}
+
+#musicMetadataManagerPage .mmo-upload-picker {display:flex;align-items:center;gap:.75em;flex-wrap:wrap;}
+#musicMetadataManagerPage .mmo-upload-picker button {margin:0;flex-shrink:0;}
+#musicMetadataManagerPage #mmoArtworkFilename {overflow-wrap:anywhere;min-width:0;}
+
+#musicMetadataManagerPage #mmoMessage:not([hidden]) {display:flex;gap:1em;align-items:center;justify-content:space-between;}
+
+/* Feedback follows the command, with one viewport dock for off-screen results. */
+#musicMetadataManagerPage .mmo-feedback {display:flex;align-items:center;gap:.6em;flex-wrap:wrap;padding:.55em .7em;border:1px solid currentColor;border-radius:.3em;margin:.4em 0;line-height:1.4;min-width:0;overflow-wrap:anywhere;}
+#musicMetadataManagerPage .mmo-feedback-text {flex:1 1 14em;white-space:pre-wrap;}
+#musicMetadataManagerPage .mmo-feedback-actions {display:flex;gap:.3em;align-items:center;}
+#musicMetadataManagerPage .mmo-feedback-actions button {margin:0;white-space:nowrap;}
+#musicMetadataManagerPage .mmo-editor-actions>.mmo-feedback,#musicMetadataManagerPage .mmo-actions>.mmo-feedback {flex:1 0 100%;order:-1;box-sizing:border-box;}
+#musicMetadataManagerPage #mmoMessage.mmo-notice-dock:not([hidden]) {position:fixed;display:block;z-index:20;bottom:calc(1em + env(safe-area-inset-bottom));right:1em;width:min(36em,calc(100vw - 2em));max-height:40vh;overflow:auto;box-sizing:border-box;background:var(--jf-palette-background-paper,var(--jf-palette-background-default,Canvas));box-shadow:0 .2em .8em rgba(0,0,0,.25);padding:.35em .6em;}
+#musicMetadataManagerPage #mmoMessage .mmo-feedback {border:0;margin:0;padding:.4em 0;}
+#musicMetadataManagerPage button[aria-busy=true] {cursor:progress;}
+#musicMetadataManagerPage .mmo-feedback[hidden] {display:none;}
+
+/* Focused issue decisions use native controls and theme colors. */
+#musicMetadataManagerPage .mmo-issue-choice {display:flex;flex-wrap:wrap;align-items:center;gap:.4em 1em;border-bottom:1px solid color-mix(in srgb,currentColor 24%,transparent);padding:.4em 0;}
+#musicMetadataManagerPage .mmo-issue-choice p {margin:.3em 0;flex:1 1 18em;}
+#musicMetadataManagerPage .mmo-issue-example,#musicMetadataManagerPage .mmo-issue-context,#musicMetadataManagerPage .mmo-issue-results {border-inline-start:3px solid currentColor;padding:.65em 1em;margin:.75em 0;overflow-wrap:anywhere;}
+#musicMetadataManagerPage #mmoIssuePanel {max-width:65em;}
+#musicMetadataManagerPage #mmoIssuePanel label {display:block;margin:.75em 0;}
+#musicMetadataManagerPage #mmoIssuePanel select,#musicMetadataManagerPage #mmoIssuePanel input {width:100%;max-width:100%;}
+#musicMetadataManagerPage .mmo-issue-dependencies {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.4em 1em;max-width:30em;}
+#musicMetadataManagerPage .mmo-issue-dependencies dd {margin:0;}
+#musicMetadataManagerPage #mmoIssueRows .mmo-row-description {white-space:pre-line;}
+#musicMetadataManagerPage #mmoIssueRows button {white-space:normal;word-break:normal;overflow-wrap:normal;}
+#musicMetadataManagerPage [data-issue-hidden] {display:none!important;}
+
+#musicMetadataManagerPage .mmo-native-link { display:inline-flex; align-items:center; justify-content:center; gap:.3em; text-decoration:none; white-space:nowrap; vertical-align:middle; margin-inline-start:.25em; }
+#musicMetadataManagerPage .mmo-native-icon { min-width:2.5em; min-height:2.5em; padding:.25em; font-size:1.1em; flex-shrink:0; }
+#musicMetadataManagerPage .mmo-native-link:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+#musicMetadataManagerPage .mmo-native-slot:empty { display:none; }
+
+#musicMetadataManagerPage #mmoIssuesTable .mmo-col-actions { width:18em; }
+#musicMetadataManagerPage .mmo-row-actions .mmo-native-icon { padding:.25em; font-size:1em; }
