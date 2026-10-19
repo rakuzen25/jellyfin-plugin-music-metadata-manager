@@ -22,11 +22,9 @@ export interface Journal {
     restores: Record<string, RestoreValues>;
     deletedRecords: Record<string, string>;
     reports: ApplicationReport[];
-    schemaVersion: number;
+    schemaVersion: 1;
     items: Record<string, JournalRecord>;
     refreshPending: string[];
-    acknowledgedErrors: string[];
-    errors: string[];
 }
 export interface Change {
     metadataEdits: MetadataPolicy[];
@@ -89,7 +87,7 @@ export interface Relinquish {
 export interface ApplicationReport {
     id: string;
     message: string;
-    createdAt: string | null;
+    createdAt: string;
     itemId: string | null;
     archivedAt: string | null;
 }
@@ -277,7 +275,7 @@ export interface Rule {
     trackDefaults: Fields;
 }
 export interface Document {
-    schemaVersion: number;
+    schemaVersion: 1;
     revision: number;
     active: Rule[];
     drafts: Rule[];

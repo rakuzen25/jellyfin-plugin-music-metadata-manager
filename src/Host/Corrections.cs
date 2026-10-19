@@ -65,7 +65,6 @@ public sealed partial class Corrections(ILibraryManager library, IFileSystem fil
                 recreatedRecords = State.DeletedRecords.Where(x => library.GetItemById(x.Key) != null).ToArray(),
                 pending = refreshQueue.Count(),
                 refreshPending = State.RefreshPending.Count,
-                errors = State.Reports.Where(r => r.ArchivedAt == null).Select(r => r.Message).ToArray(),
                 reports = State.Reports.Where(r => r.ArchivedAt == null).ToArray(),
                 unmatchedRules = p.UnmatchedRules
             };
@@ -81,7 +80,6 @@ public sealed partial class Corrections(ILibraryManager library, IFileSystem fil
         await gate.WaitAsync(token);
         try
         {
-            InitializeReports();
             inventory.RecoverMembership(State);
             ValidateDocument(Doc);
             return State.RefreshPending.ToArray();

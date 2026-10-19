@@ -118,8 +118,8 @@ export function createChanges(features: Features) {
     return {
         initialize() {
             features.identities.renderIdentities = function () {
-                const active = features.api.doc.identities || [],
-                    drafts = features.api.doc.identityDrafts || [];
+                const active = features.api.doc.identities,
+                    drafts = features.api.doc.identityDrafts;
                 features.api.q("mmoIdentities").innerHTML = active
                     .concat(drafts.filter((d) => !active.some((a) => a.id === d.id)))
                     .map((i) => {

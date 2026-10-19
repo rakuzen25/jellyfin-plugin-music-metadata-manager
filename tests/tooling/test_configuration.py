@@ -1,4 +1,4 @@
-"""Consumer identity, inventory and architecture compatibility contracts."""
+"""Consumer identity, inventory and architecture contracts."""
 
 import unittest
 from pathlib import Path
@@ -9,7 +9,7 @@ from jellyfin_plugin_toolkit.context import Context
 
 
 class ConsumerTests(unittest.TestCase):
-    def test_identity_paths_and_persistence_contracts_remain_stable(self):
+    def test_baseline_identity_paths_and_architecture(self):
         context = Context.load()
         self.assertEqual(
             "86400cc2-d51e-4695-82c0-5d4f61d3a1f7", context.identity["guid"]
@@ -34,10 +34,9 @@ class ConsumerTests(unittest.TestCase):
             self.assertNotIn(".build", path.parts)
             self.assertNotIn("runtime", path.parts)
             self.assertNotIn("DEPLOYMENT.md", path.parts)
-        self.assertIn(Path("tests/fixtures/previous-0.6.1-source.zip"), files)
         self.assertIn(Path("frontend/admin/config.ts"), files)
 
-    def test_current_inputs_and_removed_legacy_paths_are_classified(self):
+    def test_current_inputs_and_deleted_base_paths_are_classified(self):
         from jellyfin_plugin_toolkit.ci.policy import classification
 
         context = Context.load()

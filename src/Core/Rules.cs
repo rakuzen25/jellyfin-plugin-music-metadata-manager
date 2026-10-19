@@ -52,13 +52,13 @@ public sealed class Rule
 }
 public sealed class Document
 {
-    public int SchemaVersion { get; set; } = 3; public long Revision
+    [JsonRequired] public int SchemaVersion { get; set; } = DataFormat.Version; public long Revision
     {
         get; set;
     }
-    public List<Rule> Active { get; set; } = []; public List<Rule> Drafts { get; set; } = [];
-    public List<MetadataPolicy> Policies {get;set;}=[];public List<MetadataPolicy> PolicyDrafts {get;set;}=[];
-    public List<ArtistIdentity> Identities { get; set; } = []; public List<ArtistIdentity> IdentityDrafts { get; set; } = [];
+    [JsonRequired] public List<Rule> Active { get; set; } = []; [JsonRequired] public List<Rule> Drafts { get; set; } = [];
+    [JsonRequired] public List<MetadataPolicy> Policies {get;set;}=[];[JsonRequired] public List<MetadataPolicy> PolicyDrafts {get;set;}=[];
+    [JsonRequired] public List<ArtistIdentity> Identities { get; set; } = []; [JsonRequired] public List<ArtistIdentity> IdentityDrafts { get; set; } = [];
 }
 public sealed class View
 {

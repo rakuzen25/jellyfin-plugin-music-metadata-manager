@@ -12,7 +12,7 @@ Album rules supply an album title and optional defaults to tracks already groupe
 
 Active rules override locks for their specified fields only. The plugin preserves lock settings and unrelated fields, including composer credits. Disabling/deleting an active rule requires preview and activation and refreshes affected items through Jellyfin's providers. For locked or cached fields that retain the last correction, the recorded pre-correction value is restored. Provider results can differ from the removal preview. Draft deletion is immediate and preserves any active version with the same ID. Never discard plugin state before deactivating rules and verifying restoration.
 
-JSON export uses schema 3 and includes correction rules, identities, metadata policies and their drafts. Schemas 1 and 2 remain accepted. Import validates the document and merges its rules as drafts (draft entries win when an exported ID exists in both sections). Import never directly changes active rules. A new preview is required after editing rules or changing affected metadata. Reviews expire after 15 minutes or server restart.
+The initial 0.1.0 baseline uses schema 1 for JSON exports and includes correction rules, identities, metadata policies and their drafts. Only the complete current format is accepted; no prior-version imports or migrations are supported. Import validates the document and merges its rules as drafts (draft entries win when an exported ID exists in both sections). Import never directly changes active rules. A new preview is required after editing rules or changing affected metadata. Reviews expire after 15 minutes or server restart.
 
 ## Development
 
@@ -24,7 +24,7 @@ JSON export uses schema 3 and includes correction rules, identities, metadata po
 ./plugin validate --full
 ```
 
-See [development](docs/how-to/develop.md), [architecture](docs/explanation/architecture.md), [compatibility and rollback](docs/reference/compatibility.md), [administrator API](docs/reference/api.md), and [release preparation](docs/how-to/release.md).
+See [development](docs/how-to/develop.md), [architecture](docs/explanation/architecture.md), [configuration and state](docs/reference/state.md), [administrator API](docs/reference/api.md), and [release preparation](docs/how-to/release.md).
 
 Original source is [Apache-2.0](LICENSE); [NOTICE](NOTICE) and [GPLv3 distribution material](GPL-3.0.txt) accompany compiled distributions.
 

@@ -18,7 +18,7 @@ public sealed partial class Corrections
             throw new ArgumentException("Supply a rules document.");
         if (d.Active is null || d.Drafts is null || d.Identities is null || d.IdentityDrafts is null || d.Policies is null || d.PolicyDrafts is null)
             throw new ArgumentException("Active and draft rule lists must not be null.");
-        if (d.SchemaVersion is not (1 or 2 or 3))
+        if (d.SchemaVersion != DataFormat.Version)
             throw new ArgumentException("Unsupported rules schema version.");
         if (d.Active.Concat(d.Drafts).Any(r => r is null || r.Fields is null || r.TrackDefaults is null || r.Libraries is null || r.Names is null))
             throw new ArgumentException("Rules and field lists must not be null.");
@@ -143,7 +143,6 @@ public sealed partial class Corrections
         try
         {
             var exported = Codec.Clone(Doc);
-            exported.SchemaVersion = 3;
             return exported;
         }
         finally
@@ -228,9 +227,9 @@ public sealed partial class Corrections
         await gate.WaitAsync(token);
         try
         {
-            if (input.Active is null || input.Drafts is null || input.Identities is null || input.IdentityDrafts is null)
+            if (input.Active is null || input.Drafts is null || input.Identities is null || input.IdentityDrafts is null || input.Policies is null || input.PolicyDrafts is null)
                 throw new ArgumentException("Rule lists must not be null.");
-            if (input.SchemaVersion is not (1 or 2 or 3))
+            if (input.SchemaVersion != DataFormat.Version)
                 throw new ArgumentException("Unsupported rules schema version.");
             var d = Codec.Clone(Doc);
             var all = input.Active.Concat(input.Drafts).GroupBy(x => x.Id).Select(g => g.Last()).ToArray();

@@ -64,7 +64,7 @@ public sealed class AliasAdapter(AliasService aliases, ILibraryManager library, 
                 return;
             }
         }
-        // Preserve native access, DTO options, and route validation when redirecting old IDs.
+        // Preserve native access, DTO options, and route validation when redirecting linked record IDs.
         if (requestIdentity is not null && c.HttpContext.Request.Method == "GET")
             args["itemId"] = library.GetItemById(itemId!.Value) is MediaBrowser.Controller.Entities.Person ? requestIdentity.Identity.PersonId : requestIdentity.Identity.ArtistId;
         if (controller == "PersonsController" && args.TryGetValue("name", out var requestedName) && requestedName is string credit)
@@ -176,7 +176,7 @@ public sealed class AliasAdapter(AliasService aliases, ILibraryManager library, 
         if (response.Value is QueryResult<BaseItemDto> collection)
         {
             var values = collection.Items.ToList();
-            // Native legacy artist lists can omit a renamed artist record entirely. Add a representative
+            // Native artist lists can omit a renamed artist record entirely. Add a representative
             // only when this identity has accessible matching media under the native role/type filters.
             if (listing)
             {

@@ -9,28 +9,6 @@ namespace MusicMetadataManager;
 public sealed partial class Corrections
 {
     void AddReport(string message, Guid? itemId = null) => State.Reports.Add(new() { Message = message, ItemId = itemId, CreatedAt = clock.UtcNow });
-    void InitializeReports()
-    {
-        if (State.Errors.Count + State.AcknowledgedErrors.Count == 0 && State.SchemaVersion == 3)
-            return;
-        foreach (var m in State.Errors)
-            State.Reports.Add(new()
-            {
-                Message = m,
-                CreatedAt = null
-            });
-        foreach (var m in State.AcknowledgedErrors)
-            State.Reports.Add(new()
-            {
-                Message = m,
-                CreatedAt = null,
-                ArchivedAt = clock.UtcNow
-            });
-        State.Errors.Clear();
-        State.AcknowledgedErrors.Clear();
-        State.SchemaVersion = 3;
-        SaveState();
-    }
     public async Task<object> AcknowledgeReports(ReportAcknowledgment input, CancellationToken token)
     {
         if (input.Ids is null || input.Ids.Length == 0 || input.Ids.Any(string.IsNullOrWhiteSpace) || input.Ids.Distinct().Count() != input.Ids.Length)

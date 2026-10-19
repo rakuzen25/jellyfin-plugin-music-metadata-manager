@@ -163,7 +163,7 @@ export function createManagerUi(features: Features) {
         for (const o of features.api.q("mmoManagerLibraries").options) o.selected = managerPolicy.libraries.includes(o.value);
         features.api.q("mmoManagerReadOnly").hidden = details.dependencies.canEdit && !managerDetails.linkedOnly;
         features.api.q("mmoManagerReadOnly").textContent = managerDetails.linkedOnly
-            ? "This record is an alias link. Open a selected representative in Identity to edit shared artist metadata. This linked record remains stored for compatibility."
+            ? "This record is an alias link. Open a selected representative in Identity to edit shared artist metadata. The alias points to the selected representative."
             : "This record is shared outside the selected music scope and is read-only. Cover all music uses; non-music references prevent editing.";
         features.api.q("mmoManagerSourceProvider").innerHTML = details.providers
             .map(
@@ -611,18 +611,19 @@ export function createManagerUi(features: Features) {
     }
     function renderIssueStatus(s: Status) {
         features.api.q("mmoIssueStatus").innerHTML =
-            (s.reports?.length
+            (s.reports.length
                 ? s.reports
                       .map((r) => "<p>" + features.api.esc(r.message) + features.nativeLinks.nativeLink(r.itemId, "reported item") + "</p>")
                       .join("")
                 : "") +
-                [...(!s.reports?.length ? s.errors || [] : []), ...(s.unmatchedRules || []).map((x) => "Unmatched correction: " + x)]
+                s.unmatchedRules
+                    .map((x) => "Unmatched correction: " + x)
                     .map((x) => "<p>" + features.api.esc(x) + "</p>")
                     .join("") || "<p>No application failures or unmatched rules reported.</p>";
     }
     function renderMetadataDrafts() {
-        const active = features.api.doc.policies || [],
-            drafts = features.api.doc.policyDrafts || [];
+        const active = features.api.doc.policies,
+            drafts = features.api.doc.policyDrafts;
         features.api.q("mmoManagerPolicies").innerHTML = active
             .concat(drafts.filter((d) => !active.some((p) => p.id === d.id)))
             .map((p) => {
@@ -1019,9 +1020,7 @@ export function createManagerUi(features: Features) {
                     const id = b.dataset.policyEdit || b.dataset.policyResume;
                     if (!id) return;
                     const p = (
-                        b.dataset.policyResume
-                            ? features.api.doc.policyDrafts
-                            : (features.api.doc.policies || []).concat(features.api.doc.policyDrafts || [])
+                        b.dataset.policyResume ? features.api.doc.policyDrafts : features.api.doc.policies.concat(features.api.doc.policyDrafts)
                     ).find((x) => x.id === id);
                     const item = p!.identityId ? features.api.doc.identities.find((x) => x.id === p!.identityId)?.artistId : p!.itemId;
                     if (!item) throw Error("Rebind the missing canonical identity first.");

@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const emptyDocument = () => ({
-    schemaVersion: 3,
+    schemaVersion: 1,
     revision: 0,
     active: [],
     drafts: [],
@@ -10,7 +10,7 @@ const emptyDocument = () => ({
     policies: [],
     policyDrafts: [],
 });
-async function open(page, variant = "current") {
+async function open(page) {
     const errors = [],
         calls = [],
         document = emptyDocument();
@@ -39,8 +39,7 @@ async function open(page, variant = "current") {
             url = new URL(request.url()),
             api = url.pathname.replace("/MusicMetadataManager/", "");
         if (url.pathname === "/page") {
-            const file =
-                variant === "previous" ? path.join(__dirname, "fixtures/previous-page.html") : path.join(__dirname, "../../dist/web/config.html");
+            const file = path.join(__dirname, "../../dist/web/config.html");
             await route.fulfill({
                 contentType: "text/html; charset=utf-8",
                 body: "<!doctype html><html><body>" + fs.readFileSync(file, "utf8") + "</body></html>",
@@ -59,7 +58,6 @@ async function open(page, variant = "current") {
                 managedItems: 0,
                 pending: 0,
                 refreshPending: 0,
-                errors: [],
                 reports: [],
                 unmatchedRules: [],
                 identityStatus: [],

@@ -5,8 +5,12 @@ namespace MusicMetadataManager.Tests;
 public sealed class RuleContracts
 {
 [Fact]
-public void ExistingRuleIdentityAndSerializationContracts()
+public void RuleIdentityAndSerializationContracts()
 {
+Assert.Equal(1, new Document().SchemaVersion);
+Assert.Equal(1, new Journal().SchemaVersion);
+Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Document>("{}", Codec.Json));
+Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Document>("{\"schemaVersion\":1,\"active\":[],\"drafts\":[]}", Codec.Json));
 int assertions = 0;
 void Check(bool value, string name) { if (!value) throw new Exception(name); assertions++; }
 Rule R(string kind, string path = "") => new() { Kind = kind, Path = path, Libraries = ["lib"] };
@@ -81,7 +85,6 @@ Check(IdentityEngine.Validate([identity,another]).Count==0,"identity distinct li
 var aliasDocument=new Document{Identities=[identity],IdentityDrafts=[another]};
 Check(Codec.Hash(aliasDocument)==Codec.Hash(Codec.Clone(aliasDocument)),"identity JSON roundtrip");
 Check(Codec.Clone(aliasDocument).Identities.Count==1,"identity draft isolation");
-Check(JsonSerializer.Deserialize<Document>("{\"schemaVersion\":1,\"active\":[],\"drafts\":[]}",Codec.Json)!.Identities.Count==0,"schema 1 imports retain empty identity registry");
 
 var decisions=new Dictionary<string,FieldDecision>{["overview"]=new(){Mode="empty"},["genres"]=new(){Mode="approved",Value=JsonSerializer.SerializeToElement(new[]{"J-Pop"})}};
 Check(MetadataEngine.Values(decisions)["overview"].ValueKind==JsonValueKind.Null,"explicit empty is managed null");
@@ -94,11 +97,10 @@ Check(MetadataEngine.ValidateFields(new(){["productionYear"]=new(){Value=JsonSer
 var extended=Codec.Clone(track);extended.Fields.Decisions=decisions;
 Check(Engine.Project(v,[extended]).Values["overview"].ValueKind==JsonValueKind.Null,"extended fields preserve exact-rule precedence");
 var policy=new MetadataPolicy{ItemId=Guid.NewGuid(),Libraries=["music"],Fields=decisions};
-var schema3=new Document{Active=[extended],Policies=[policy],PolicyDrafts=[new(){ItemId=Guid.NewGuid(),Libraries=["music"],Fields=new(){["overview"]=new(){Value=JsonSerializer.SerializeToElement("draft")}}}]};
-Check(Codec.Hash(schema3)==Codec.Hash(Codec.Clone(schema3)),"schema 3 JSON round trip");
-var xmlSerializer=new System.Xml.Serialization.XmlSerializer(typeof(Document));using var xml=new StringWriter();xmlSerializer.Serialize(xml,schema3);var xmlRoundtrip=(Document)xmlSerializer.Deserialize(new StringReader(xml.ToString()))!;
-Check(Codec.Hash(schema3)==Codec.Hash(xmlRoundtrip),"Jellyfin XML configuration round trip preserves field decisions");
-Check(JsonSerializer.Deserialize<Document>("{\"schemaVersion\":2,\"active\":[],\"drafts\":[]}",Codec.Json)!.Policies.Count==0,"schema 2 retains prior behavior without policies");
+var documentWithPolicies=new Document{Active=[extended],Policies=[policy],PolicyDrafts=[new(){ItemId=Guid.NewGuid(),Libraries=["music"],Fields=new(){["overview"]=new(){Value=JsonSerializer.SerializeToElement("draft")}}}]};
+Check(Codec.Hash(documentWithPolicies)==Codec.Hash(Codec.Clone(documentWithPolicies)),"baseline JSON round trip");
+var xmlSerializer=new System.Xml.Serialization.XmlSerializer(typeof(Document));using var xml=new StringWriter();xmlSerializer.Serialize(xml,documentWithPolicies);var xmlRoundtrip=(Document)xmlSerializer.Deserialize(new StringReader(xml.ToString()))!;
+Check(Codec.Hash(documentWithPolicies)==Codec.Hash(xmlRoundtrip),"Jellyfin XML configuration round trip preserves field decisions");
 Check(MetadataEngine.ValidatePolicies([policy]).Count==0,"artist policy optional fields valid");
 var duplicatePolicy=Codec.Clone(policy);duplicatePolicy.Id=Guid.NewGuid().ToString("N");
 Check(MetadataEngine.ValidatePolicies([policy,duplicatePolicy]).Count>0,"native policy field conflicts rejected");

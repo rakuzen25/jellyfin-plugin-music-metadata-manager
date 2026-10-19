@@ -26,6 +26,41 @@ public sealed class PersistenceAndQueueTests
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void UnknownJournalFormatIsRejectedWithoutRewritingState(int version)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "manager-journal-" + Guid.NewGuid());
+        try
+        {
+            Directory.CreateDirectory(directory);
+            var file = Path.Combine(directory, "state.json");
+            var invalid = JsonSerializer.Serialize(new Journal { SchemaVersion = version }, Codec.Json);
+            File.WriteAllText(file, invalid);
+            var store = new JsonJournalStore(new PluginStorage(directory));
+            Assert.Throws<InvalidDataException>(() => store.Load());
+            Assert.Equal(invalid, File.ReadAllText(file));
+            Assert.Throws<InvalidDataException>(() => store.Save(new Journal { SchemaVersion = version }));
+            Assert.Equal(invalid, File.ReadAllText(file));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public void JournalRequiresCurrentFormatAndReportsInsteadOfConvertingOldErrors()
+    {
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Journal>("{}", Codec.Json));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Journal>("{\"schemaVersion\":1,\"errors\":[],\"acknowledgedErrors\":[]}", Codec.Json));
+        var directory = Path.Combine(Path.GetTempPath(), "manager-fresh-" + Guid.NewGuid());
+        Assert.False(Directory.Exists(directory));
+        var journal = new JsonJournalStore(new PluginStorage(directory)).Load();
+        Assert.Equal(1, journal.SchemaVersion);
+        Assert.Empty(journal.Reports);
+        Assert.False(Directory.Exists(directory));
+    }
+
     [Fact]
     public async Task DuplicateWorkKeepsRefreshAndReadmissionRemainsIndependent()
     {

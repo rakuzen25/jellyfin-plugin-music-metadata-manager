@@ -118,6 +118,8 @@ export function createActions(features: Features) {
         }
         features.api.page.addEventListener("click", capture, true);
         features.api.page.addEventListener("submit", capture, true);
+        // A filter change is a new event owner, even before a prior click's reset timer runs.
+        features.api.page.addEventListener("change", capture, true);
         function acquire() {
             const meta = describe(trigger);
             if (!trigger) {

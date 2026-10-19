@@ -6,6 +6,6 @@ module.exports = defineConfig({
     workers: 1,
     reporter: "list",
     outputDir: process.env.CI_BROWSER_OUTPUT_DIR || "results",
-    use: { headless: true, viewport: { width: 1440, height: 1000 } },
+    use: { headless: true, trace: "retain-on-failure", screenshot: "only-on-failure", viewport: { width: 1440, height: 1000 } },
     projects: [{ name: "workflow-chromium", use: { browserName: "chromium" } }],
 });

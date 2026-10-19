@@ -36,7 +36,6 @@ export interface Status {
     managedRecords: number;
     pending: number;
     refreshPending: number;
-    errors: string[];
     reports: ApplicationReport[];
     unmatchedRules: string[];
     history: HistoryEntry[];

@@ -1,9 +1,0 @@
-{
-    "version": "0.6.1",
-    "source": "previous-0.6.1-source.zip",
-    "sha256": "2490ab27bc4b21f50761c4f1066b954f52dfff95315566de85f926c782ead17f",
-    "provenance": "Characterization build from the preserved local 0.6.1 source; this is not asserted to be a previously published release.",
-    "license": "Apache-2.0",
-    "hostAssembly": "Jellyfin.Plugin.MusicMetadataManager",
-    "guid": "86400cc2-d51e-4695-82c0-5d4f61d3a1f7"
-}

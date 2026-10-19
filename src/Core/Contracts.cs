@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 namespace MusicMetadataManager;
 
 
@@ -14,7 +15,7 @@ public sealed class Journal
 {
     public Dictionary<string,string> IdentityNames {get;set;}=[];
     public Dictionary<Guid,ManagedRecord> Metadata {get;set;}=[];public List<HistoryEntry> History {get;set;}=[];public Dictionary<Guid,RestoreValues> Restores {get;set;}=[];public Dictionary<Guid,string> DeletedRecords {get;set;}=[];
-    public List<ApplicationReport> Reports {get;set;}=[]; public int SchemaVersion { get; set; } = 3; public Dictionary<Guid, Record> Items { get; set; } = []; public List<Guid> RefreshPending { get; set; } = []; public List<string> AcknowledgedErrors {get;set;}=[]; public List<string> Errors { get; set; } = [];
+    [JsonRequired] public List<ApplicationReport> Reports {get;set;}=[]; [JsonRequired] public int SchemaVersion { get; set; } = DataFormat.Version; public Dictionary<Guid, Record> Items { get; set; } = []; public List<Guid> RefreshPending { get; set; } = [];
 }
 public sealed class Change
 {
@@ -60,7 +61,7 @@ public sealed class Relinquish {public Guid ItemId {get;set;}public string[] Fie
 public sealed class ApplicationReport
 {
  public string Id {get;set;}=Guid.NewGuid().ToString("N"); public string Message {get;set;}="";
- public DateTime? CreatedAt {get;set;}=DateTime.UtcNow; public Guid? ItemId {get;set;} public DateTime? ArchivedAt {get;set;}
+ public DateTime CreatedAt {get;set;}=DateTime.UtcNow; public Guid? ItemId {get;set;} public DateTime? ArchivedAt {get;set;}
 }
 public sealed class ReportAcknowledgment {public string[] Ids {get;set;}=[];}
 public sealed record IssueEntry(string Key,string Type,string Status,string Name,string Reason,bool CanRepair,bool CanDelete,bool CanAcknowledge,Guid? ItemId,string? IdentityId,object? Context,string CauseCode="",object? Guidance=null);

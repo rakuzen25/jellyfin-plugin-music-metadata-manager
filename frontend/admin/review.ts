@@ -44,7 +44,7 @@ export function createReview(features: Features) {
     function requestedMetadataIds(change: Partial<Change>) {
         const policies = [
             ...(change.metadataEdits || []),
-            ...(features.api.doc.policyDrafts || []).filter((p) => (change.activatePolicies || []).includes(p.id)),
+            ...features.api.doc.policyDrafts.filter((p) => (change.activatePolicies || []).includes(p.id)),
         ];
         return new Set(
             policies
@@ -60,7 +60,7 @@ export function createReview(features: Features) {
         const same = (a: string, b: string) => a?.replaceAll("-", "") === b?.replaceAll("-", "");
         const proposals = [
             ...(change.metadataEdits || []),
-            ...(features.api.doc.policyDrafts || []).filter((p) => (change.activatePolicies || []).includes(p.id)),
+            ...features.api.doc.policyDrafts.filter((p) => (change.activatePolicies || []).includes(p.id)),
         ];
         const proposal = proposals.find((p) => (p.identityId ? p.identityId === row.identityId : same(p.itemId, row.id)));
         if (!proposal) return true;

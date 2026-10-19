@@ -211,8 +211,8 @@ export function createRules(features: Features) {
                 features.api.perform(() =>
                     preview({
                         activateIds: features.api.doc.drafts.map((x) => x.id),
-                        activateIdentities: (features.api.doc.identityDrafts || []).map((x) => x.id),
-                        activatePolicies: (features.api.doc.policyDrafts || []).map((x) => x.id),
+                        activateIdentities: features.api.doc.identityDrafts.map((x) => x.id),
+                        activatePolicies: features.api.doc.policyDrafts.map((x) => x.id),
                     }),
                 );
             features.api.q("mmoApply").onclick = () =>

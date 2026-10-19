@@ -1,4 +1,4 @@
-"""Configuration compatibility on an owned official-image fixture and synthetic media."""
+"""Fresh baseline acceptance on an owned official-image fixture and synthetic media."""
 
 import copy
 import urllib.error
@@ -7,7 +7,6 @@ import uuid
 
 from jellyfin_plugin_toolkit.acceptance import inventory
 
-from .baseline import prior_package
 from .manager import characterize_manager
 from .media import MusicSession as Session
 from .media import characterize_media, wait_for
@@ -20,7 +19,7 @@ def endpoint(session, path, method="GET", body=None):
 def characterize(session):
     initial = endpoint(session, "rules")
     assert (
-        initial["schemaVersion"] == 3
+        initial["schemaVersion"] == 1
         and initial["active"] == []
         and initial["drafts"] == []
     )
@@ -30,6 +29,25 @@ def characterize(session):
         assert error.code in (401, 403)
     else:
         raise AssertionError("Administrator API admitted an anonymous request")
+    for version in [0, 2, 3]:
+        unsupported = copy.deepcopy(initial)
+        unsupported["schemaVersion"] = version
+        try:
+            endpoint(session, "import", "POST", unsupported)
+        except urllib.error.HTTPError as error:
+            assert error.code == 400
+        else:
+            raise AssertionError("Unsupported import format was accepted")
+        assert endpoint(session, "rules") == initial
+    try:
+        endpoint(
+            session, "import", "POST", {"schemaVersion": 1, "active": [], "drafts": []}
+        )
+    except urllib.error.HTTPError as error:
+        assert error.code == 400
+    else:
+        raise AssertionError("Incomplete import shape was accepted")
+    assert endpoint(session, "rules") == initial
     session.call(
         "/Library/VirtualFolders?name=Fixture%20music&collectionType=music&refreshLibrary=false",
         "POST",
@@ -124,22 +142,10 @@ def characterize(session):
 
 def main():
     inventory()
-    prior = prior_package()
     with Session() as session:
         characterize(session)
-    with Session(prior) as session:
-        before = characterize(session)
-        current = (
-            session.context.root
-            / "dist"
-            / f"{session.context.prefix}-{session.context.version}.zip"
-        )
-        session.replace(current)
-        assert endpoint(session, "rules") == before
-        session.replace(prior)
-        assert endpoint(session, "rules") == before
     print(
-        "PASS: fresh installation, administrator authorization, draft/preview/activation/import, native correction/restoration, retained metadata, artwork, identity favorites, cleanup safeguards, restart, upgrade and rollback preserve XML configuration and media bytes"
+        "PASS: fresh installation, administrator authorization, draft/preview/activation/import, native correction/restoration, retained metadata, artwork, identity favorites, cleanup safeguards, same-version restart preserve current configuration, journal state and media bytes"
     )
 
 

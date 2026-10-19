@@ -79,6 +79,21 @@ public sealed class ReviewCharacterizationTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.Activate(review.Token, cancellation));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task UnknownDocumentFormatCannotImportOrChangeCurrentState(int version)
+    {
+        using var fixture = new Fixture();
+        var before = Codec.Hash(fixture.Configuration.Current);
+        var document = new Document { SchemaVersion = version };
+        Assert.Contains("Unsupported rules schema version.", fixture.Service.Validation(document));
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.Import(document, TestContext.Current.CancellationToken));
+        Assert.Equal(before, Codec.Hash(fixture.Configuration.Current));
+        Assert.Equal(0, fixture.Configuration.SaveCount);
+    }
+
     private sealed class Fixture : IDisposable
     {
         public ConfigurationMemory Configuration { get; } = new();

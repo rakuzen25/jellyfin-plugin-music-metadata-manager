@@ -1,88 +1,19 @@
 const { test, expect } = require("playwright/test");
 const { open } = require("./fixture.cjs");
-async function pixelDifference(page, before, after) {
-    return page.evaluate(
-        async (encoded) => {
-            const images = await Promise.all(
-                encoded.map(async (data) => createImageBitmap(await (await fetch("data:image/png;base64," + data)).blob())),
-            );
-            if (images[0].width !== images[1].width || images[0].height !== images[1].height) return { differentSize: true };
-            const canvas = document.createElement("canvas");
-            canvas.width = images[0].width;
-            canvas.height = images[0].height;
-            const context = canvas.getContext("2d", { willReadFrequently: true });
-            const pixels = images.map((image) => {
-                context.clearRect(0, 0, canvas.width, canvas.height);
-                context.drawImage(image, 0, 0);
-                image.close();
-                return context.getImageData(0, 0, canvas.width, canvas.height).data;
-            });
-            let changed = 0,
-                meaningful = 0;
-            for (let index = 0; index < pixels[0].length; index += 4) {
-                let delta = 0;
-                for (let channel = 0; channel < 4; channel++)
-                    delta = Math.max(delta, Math.abs(pixels[0][index + channel] - pixels[1][index + channel]));
-                if (delta) changed++;
-                if (delta > 8) meaningful++;
-            }
-            return { differentSize: false, changed, meaningful };
-        },
-        [before.toString("base64"), after.toString("base64")],
-    );
-}
-function visuallyEqual(difference) {
-    // Chromium occasionally rounds a few native-control edge channels differently.
-    // Keep dimensions exact; allow at most 16 pixels with a channel delta of 8/255.
-    return !difference.differentSize && difference.meaningful === 0 && difference.changed <= 16;
-}
-async function stableScreenshot(page) {
-    await page.bringToFront();
-    await page.evaluate(async () => {
-        await document.fonts.ready;
-        await new Promise(requestAnimationFrame);
-        await new Promise(requestAnimationFrame);
-    });
-    const region = page.locator("#musicMetadataManagerPage");
-    let previous = await region.screenshot({ animations: "disabled" });
-    for (let attempt = 0; attempt < 8; attempt++) {
-        const current = await region.screenshot({ animations: "disabled" });
-        if (visuallyEqual(await pixelDifference(page, previous, current))) return current;
-        if (attempt === 7) {
-            await test.info().attach("unstable-before", { body: previous, contentType: "image/png" });
-            await test.info().attach("unstable-after", { body: current, contentType: "image/png" });
-        }
-        previous = current;
-    }
-    throw new Error("Administrator page did not reach a stable visual state");
-}
-async function compare(previous, current) {
-    const before = await stableScreenshot(previous),
-        after = await stableScreenshot(current);
-    const difference = await pixelDifference(current, before, after);
-    if (!visuallyEqual(difference)) {
-        await test.info().attach("baseline", { body: before, contentType: "image/png" });
-        await test.info().attach("current", { body: after, contentType: "image/png" });
-    }
-    expect(visuallyEqual(difference), JSON.stringify(difference)).toBe(true);
-}
-test("module conversion preserves landing and editor appearance against the previous page", async ({ browser }) => {
+test("landing and rule editor fit wide and narrow viewports", async ({ browser }) => {
     for (const width of [1440, 390]) {
-        const previous = await browser.newPage({ viewport: { width, height: 1000 } }),
-            current = await browser.newPage({ viewport: { width, height: 1000 } });
-        const before = await open(previous, "previous"),
-            after = await open(current);
-        await compare(previous, current);
-        for (const page of [previous, current]) {
-            await page.locator("[data-view=rules]").click();
-            await page.locator("#mmoNew").click();
-            await expect(page.locator("#mmoWorkspace")).toBeVisible();
-        }
-        await compare(previous, current);
-        expect(before.errors).toEqual([]);
-        expect(after.errors).toEqual([]);
-        await previous.close();
-        await current.close();
+        const page = await browser.newPage({ viewport: { width, height: 1000 } });
+        const fixture = await open(page);
+        await expect(page.locator("#musicMetadataManagerPage")).toBeVisible();
+        await expect(page.locator("#mmoInventoryFind")).toBeVisible();
+        await page.locator("[data-view=rules]").click();
+        await page.locator("#mmoNew").click();
+        await expect(page.locator("#mmoWorkspace")).toBeVisible();
+        await expect(page.locator("#mmoSaveDraft")).toBeEnabled();
+        const widthOfPage = await page.evaluate(() => document.documentElement.scrollWidth);
+        expect(widthOfPage).toBeLessThanOrEqual(width);
+        expect(fixture.errors).toEqual([]);
+        await page.close();
     }
 });
 test("keyboard navigation retains unfinished edits without a server write", async ({ page }) => {
@@ -115,26 +46,20 @@ test("saving a draft and preparing review never implicitly activate it", async (
     expect(fixture.errors).toEqual([]);
 });
 
-test("dark host theme preserves the previous page and narrow editor", async ({ browser }) => {
-    const previous = await browser.newPage({ viewport: { width: 390, height: 1000 } }),
-        current = await browser.newPage({ viewport: { width: 390, height: 1000 } });
-    const before = await open(previous, "previous"),
-        after = await open(current);
-    for (const page of [previous, current])
-        await page.addStyleTag({
-            content:
-                ":root{color-scheme:dark;--jf-palette-background-default:#181818;--jf-palette-primary-main:#4aa5cf}body{background:#181818;color:#eee}",
-        });
-    await compare(previous, current);
-    for (const page of [previous, current]) {
-        await page.locator("[data-view=rules]").click();
-        await page.locator("#mmoNew").click();
-    }
-    await compare(previous, current);
-    expect(before.errors).toEqual([]);
-    expect(after.errors).toEqual([]);
-    await previous.close();
-    await current.close();
+test("dark host theme keeps the narrow editor usable", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 1000 });
+    const fixture = await open(page);
+    await page.addStyleTag({
+        content:
+            ":root{color-scheme:dark;--jf-palette-background-default:#181818;--jf-palette-primary-main:#4aa5cf}body{background:#181818;color:#eee}",
+    });
+    await page.locator("[data-view=rules]").click();
+    await page.locator("#mmoNew").click();
+    await page.locator("#mmoLabel").fill("Dark theme draft");
+    await expect(page.locator("#mmoLabel")).toHaveValue("Dark theme draft");
+    await expect(page.locator("#mmoSaveDraft")).toBeEnabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    expect(fixture.errors).toEqual([]);
 });
 test("a late inventory response cannot replace a newer search", async ({ page }) => {
     const fixture = await open(page);
@@ -155,10 +80,16 @@ test("a late inventory response cannot replace a newer search", async ({ page })
         });
     });
     await page.locator("#mmoInventorySearch").fill("older");
-    await page.locator("#mmoInventoryFind").click();
+    // Keep the click and filter change in one dispatch turn to exercise event ownership,
+    // independently of browser timer scheduling and CI speed.
+    await page.evaluate(() => {
+        document.querySelector("#mmoInventoryFind").click();
+        document.querySelector("#mmoInventorySearch").value = "newer";
+        const filter = document.querySelector("#mmoInventoryView");
+        filter.value = "native";
+        filter.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     await expect.poll(() => arrived).toBe(true);
-    await page.locator("#mmoInventorySearch").fill("newer");
-    await page.locator("#mmoInventoryView").selectOption("native");
     await expect(page.locator("#mmoInventoryCount")).toContainText("2 results");
     const response = page.waitForResponse((response) => new URL(response.url()).searchParams.get("search") === "older");
     release();

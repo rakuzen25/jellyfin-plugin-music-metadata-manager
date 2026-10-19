@@ -50,7 +50,7 @@ public sealed partial class Corrections {
    }
   }
   // Per-field Unmanaged in the manager has the same retained-value semantics as Stop managing.
-  // Include fields derived on child tracks by an edited album rule, without changing legacy rule removal.
+  // Include fields derived on child tracks by an edited album rule, while retaining explicit rule removal semantics.
   var requestedPaths=c.MetadataEdits.Where(p=>p.ItemId!=Guid.Empty).Select(p=>library.GetItemById(p.ItemId)?.Path).Concat(c.Relinquish.Select(r=>library.GetItemById(r.ItemId)?.Path)).Where(p=>p!=null).ToHashSet();
   var editedRules=Doc.Active.Where(r=>r.Kind!="alias"&&(requestedPaths.Contains(r.Path)||c.ActivateIds.Contains(r.Id)&&d.Active.Any(n=>n.Id==r.Id&&n.Metadata!=null))).ToArray();
   var explicitTargets=ExpandedRelinquish(c).Select(r=>r.ItemId).ToHashSet();
