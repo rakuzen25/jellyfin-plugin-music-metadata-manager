@@ -1,0 +1,22 @@
+name: Build draft release artifacts
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft release tag to build or retry
+        required: true
+        type: string
+      validated_run_id:
+        description: Successful validation run whose immutable artifacts should be attached
+        type: string
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+  attestations: write
+jobs:
+  release:
+    uses: rakuzen25/jellyfin-plugin-toolkit/.github/workflows/release.yml@a2d1ea6a13b2f1e6c0cb7c4fd4609c5f16b60243
+    with:
+      tag: ${{ inputs.tag }}
+      validated_run_id: ${{ inputs.validated_run_id }}

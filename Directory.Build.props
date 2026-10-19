@@ -1,0 +1,4 @@
+<Project>
+  <PropertyGroup><PluginRepositoryRoot>$(MSBuildThisFileDirectory)</PluginRepositoryRoot></PropertyGroup>
+  <Import Project=".build/toolkit/current/msbuild/Plugin.props" />
+</Project>

@@ -8,4 +8,5 @@ runtime/
 artifacts/
 **/__pycache__/
 *.py[cod]
+TestResults/
 tests/browser/results*/

@@ -1,0 +1,19 @@
+packages:
+  - frontend
+  - tests/browser
+
+# The compatibility wrapper otherwise resolves a floating TypeScript 6 compiler.
+overrides:
+  "@typescript/old": "npm:typescript@6.0.3"
+
+# esbuild needs its platform-specific binary installation; other dependency
+# lifecycle scripts are not authorized implicitly.
+allowBuilds:
+  esbuild: true
+strictDepBuilds: true
+pmOnFail: error
+# Restoration is explicit and frozen in CI/packaging; checks must not install.
+verifyDepsBeforeRun: false
+# Keep the 24-hour policy aligned with Renovate and pip (test:tooling checks it).
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
