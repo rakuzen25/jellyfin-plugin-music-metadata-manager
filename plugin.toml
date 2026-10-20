@@ -1,0 +1,325 @@
+schema = 1
+
+[plugin]
+"id" = "music-metadata-manager"
+"name" = "Music Metadata Manager"
+"guid" = "86400cc2-d51e-4695-82c0-5d4f61d3a1f7"
+"assembly" = "Jellyfin.Plugin.MusicMetadataManager"
+"repository" = "rakuzen25/jellyfin-plugin-music-metadata-manager"
+"owner" = "rakuzen25"
+"description" = "Explicit music metadata corrections with preview and activation; original media stays unchanged."
+"overview" = "Review music metadata corrections, artist identities and library issues"
+"category" = "Music"
+
+[host]
+"abi" = "12.2.0.0"
+"framework" = "net10.0"
+"platform" = "linux/amd64"
+"image" = "jellyfin/jellyfin@sha256:357724bf0ae27a672c7cbaa899db2d9abeb13dbd8657ccce750258a4c059d037"
+
+[images]
+"playwright" = "mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf"
+"actionlint" = "rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667"
+
+[backend]
+"entry" = "src/Host/Plugin.csproj"
+"projects" = { "Application" = "src/Application/MusicMetadataManager.Application.csproj", "Core" = "src/Core/MusicMetadataManager.Core.csproj", "Infrastructure" = "src/Infrastructure/MusicMetadataManager.Infrastructure.csproj", "Host" = "src/Host/Plugin.csproj" }
+"project_assemblies" = [
+  "MusicMetadataManager.Application",
+  "MusicMetadataManager.Core",
+  "MusicMetadataManager.Infrastructure",
+]
+"tests" = [
+  "tests/backend/Application/MusicMetadataManager.Application.Tests.csproj",
+  "tests/backend/Core/MusicMetadataManager.Core.Tests.csproj",
+  "tests/backend/Infrastructure/MusicMetadataManager.Infrastructure.Tests.csproj",
+  "tests/backend/Host/MusicMetadataManager.Host.Tests.csproj",
+]
+"source_roots" = ["src", "tests/backend"]
+
+[architecture]
+"edges" = { "src/Application/MusicMetadataManager.Application.csproj" = [
+  "src/Core/MusicMetadataManager.Core.csproj",
+], "src/Core/MusicMetadataManager.Core.csproj" = [
+], "src/Infrastructure/MusicMetadataManager.Infrastructure.csproj" = [
+  "src/Application/MusicMetadataManager.Application.csproj",
+  "src/Core/MusicMetadataManager.Core.csproj",
+], "src/Host/Plugin.csproj" = [
+  "src/Application/MusicMetadataManager.Application.csproj",
+  "src/Core/MusicMetadataManager.Core.csproj",
+  "src/Infrastructure/MusicMetadataManager.Infrastructure.csproj",
+], "tests/backend/Application/MusicMetadataManager.Application.Tests.csproj" = [
+  "src/Application/MusicMetadataManager.Application.csproj",
+], "tests/backend/Core/MusicMetadataManager.Core.Tests.csproj" = [
+  "src/Core/MusicMetadataManager.Core.csproj",
+], "tests/backend/Infrastructure/MusicMetadataManager.Infrastructure.Tests.csproj" = [
+  "src/Infrastructure/MusicMetadataManager.Infrastructure.csproj",
+], "tests/backend/Host/MusicMetadataManager.Host.Tests.csproj" = [
+  "src/Host/Plugin.csproj",
+] }
+"forbidden" = { "src/Application" = [
+  "MediaBrowser.",
+  "Jellyfin.",
+  "Plugin.Instance",
+  "System.Net.Http",
+  "System.IO.File",
+], "src/Core" = [
+  "Microsoft.Data.Sqlite",
+  "MediaBrowser.",
+  "Jellyfin.",
+  "System.Net.Http",
+  "Plugin.Instance",
+], "src/Infrastructure" = [
+  "MediaBrowser.",
+  "Jellyfin.",
+  "Plugin.Instance",
+] }
+
+[frontend]
+"enabled" = true
+"directory" = "frontend"
+"entries" = {}
+"reload_assets" = []
+"required_assets" = ["config.html"]
+"admin_entry" = "admin/config.ts"
+"admin_template" = "frontend/admin/config.html"
+"admin_styles" = "frontend/admin/styles.css"
+"script_marker" = "<!-- PLUGIN_CONFIG_SCRIPT -->"
+"style_marker" = "/* PLUGIN_STYLES */"
+"boundary_check" = "frontend/check-boundaries.mjs"
+"extra_assets" = []
+
+[sandbox]
+"settings_page" = "musicmetadatamanager"
+"asset_prefix" = "/__no_plugin_assets__/"
+
+[browser]
+"directory" = "tests/browser"
+"groups" = "tests/browser/groups.json"
+
+[source]
+"roots" = ["src", "frontend", "tests", "docs", ".github"]
+
+[validation]
+"groups" = [
+  "metadata",
+  "frontend",
+  "backend",
+  "tooling",
+  "workflow",
+  "artifacts",
+]
+"check_targets" = ["frontend", "backend", "tooling", "docs"]
+"unit_groups" = ["frontend", "backend", "tooling"]
+"acceptance_groups" = ["workflow", "installation", "reproducibility"]
+"rules" = [
+  { "name" = "docs", "patterns" = [
+    "*.md",
+    "docs/**",
+  ], "groups" = [
+  ] },
+  { "name" = "build-policy", "patterns" = [
+    "build-support/**",
+    "plugin",
+    "plugin.toml",
+    "toolkit.lock.json",
+    "version.txt",
+    ".github/**",
+    "Directory.Build.*",
+    "global.json",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    ".node-version",
+    ".python-version",
+    "requirements-check.txt",
+    "eslint.config.mjs",
+    "knip.json",
+    ".prettier*",
+    "pyproject.toml",
+    ".editorconfig",
+    ".gitignore",
+    ".dockerignore",
+    "release-please-config.json",
+    ".release-please-manifest.json",
+    "LICENSE",
+    "NOTICE",
+    "GPL-3.0.txt",
+  ], "groups" = [
+    "metadata",
+    "frontend",
+    "backend",
+    "tooling",
+    "workflow",
+    "artifacts",
+  ] },
+  { "name" = "backend", "patterns" = [
+    "src/**",
+    "vendor/**",
+    "tests/backend/**",
+  ], "groups" = [
+    "backend",
+    "tooling",
+    "workflow",
+    "artifacts",
+  ] },
+  { "name" = "frontend", "patterns" = [
+    "frontend/**",
+    "tests/browser/**",
+  ], "groups" = [
+    "frontend",
+    "workflow",
+    "artifacts",
+  ] },
+  { "name" = "tooling", "patterns" = [
+    "scripts/**",
+    "tests/tooling/**",
+    "tests/installation/**",
+    "tests/__init__.py",
+  ], "groups" = [
+    "tooling",
+    "artifacts",
+  ] },
+  { "name" = "automation", "patterns" = [
+    "renovate.json",
+  ], "groups" = [
+    "metadata",
+    "tooling",
+  ] },
+  { "name" = "prior-layout-and-fixtures", "patterns" = [
+    "core/**",
+    "web/**",
+    "tests/fixtures/**",
+  ], "groups" = [
+    "metadata",
+    "frontend",
+    "backend",
+    "tooling",
+    "workflow",
+    "artifacts",
+  ] },
+]
+"job_names" = {}
+
+[operations]
+"check-frontend" = { "commands" = [
+  [
+    "{pnpm}",
+    "exec",
+    "prettier",
+    "--check",
+    "frontend/**/*.{ts,mjs,json,css,html}",
+    "tests/browser/**/*.{cjs,json}",
+  ],
+  [
+    "{pnpm}",
+    "exec",
+    "eslint",
+    "frontend",
+    "tests/browser",
+    "--max-warnings",
+    "0",
+  ],
+  [
+    "node",
+    "frontend/check-boundaries.mjs",
+  ],
+  [
+    "{pnpm}",
+    "--dir",
+    "frontend",
+    "exec",
+    "tsc",
+    "--noEmit",
+  ],
+  [
+    "{pnpm}",
+    "--dir",
+    "frontend",
+    "exec",
+    "tsc",
+    "--project",
+    "tsconfig.tests.json",
+    "--noEmit",
+  ],
+] }
+"test-frontend" = { "commands" = [
+  [
+    "node",
+    "--experimental-strip-types",
+    "--test",
+  ],
+], "cwd" = "frontend" }
+"check-tooling" = { "commands" = [
+  [
+    "{python}",
+    "-m",
+    "jellyfin_plugin_toolkit.checks.tooling",
+  ],
+  [
+    "{python}",
+    "-m",
+    "mypy",
+  ],
+  [
+    "{python}",
+    "-m",
+    "jellyfin_plugin_toolkit.checks.architecture",
+  ],
+  [
+    "{python}",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests/tooling",
+  ],
+] }
+"test-tooling" = { "commands" = [
+  [
+    "{python}",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests/tooling",
+  ],
+] }
+"test-workflow" = { "commands" = [
+  [
+    "{python}",
+    "plugin",
+    "test",
+    "browser",
+    "--project",
+    "workflow-chromium",
+  ],
+] }
+"test-installation" = { "commands" = [
+  [
+    "{python}",
+    "-m",
+    "tests.installation",
+  ],
+] }
+[distribution]
+"web" = false
+"notices" = [
+  { "source" = "LICENSE" },
+  { "source" = "NOTICE" },
+  { "source" = "GPL-3.0.txt" },
+]
+"licenses" = { "MusicMetadataManager.Application.dll" = { "license" = "Apache-2.0", "notices" = [
+  "LICENSE",
+  "GPL-3.0.txt",
+] }, "Jellyfin.Plugin.MusicMetadataManager.dll" = { "license" = "Apache-2.0", "notices" = [
+  "LICENSE",
+  "GPL-3.0.txt",
+] }, "MusicMetadataManager.Core.dll" = { "license" = "Apache-2.0", "notices" = [
+  "LICENSE",
+  "GPL-3.0.txt",
+] }, "MusicMetadataManager.Infrastructure.dll" = { "license" = "Apache-2.0", "notices" = [
+  "LICENSE",
+  "GPL-3.0.txt",
+] } }
+"licensed_paths" = []

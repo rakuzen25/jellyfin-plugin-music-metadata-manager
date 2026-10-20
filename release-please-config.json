@@ -1,0 +1,37 @@
+{
+    "release-type": "simple",
+    "draft": true,
+    "packages": {
+        ".": {
+            "package-name": "music-metadata-manager",
+            "extra-files": [
+                {
+                    "type": "json",
+                    "path": "src/Host/packages.lock.json",
+                    "jsonpath": "$..dependencies[?(@property === 'MusicMetadataManager.Core' || @property === 'MusicMetadataManager.Infrastructure')]"
+                },
+                {
+                    "type": "json",
+                    "path": "src/Infrastructure/packages.lock.json",
+                    "jsonpath": "$..dependencies[?(@property === 'MusicMetadataManager.Core' || @property === 'MusicMetadataManager.Infrastructure')]"
+                },
+                {
+                    "type": "json",
+                    "path": "tests/backend/Infrastructure/packages.lock.json",
+                    "jsonpath": "$..dependencies[?(@property === 'MusicMetadataManager.Core' || @property === 'MusicMetadataManager.Infrastructure')]"
+                },
+                {
+                    "type": "json",
+                    "path": "tests/backend/Host/packages.lock.json",
+                    "jsonpath": "$..dependencies[?(@property === 'MusicMetadataManager.Core' || @property === 'MusicMetadataManager.Infrastructure')]"
+                }
+            ]
+        }
+    },
+    "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+    "version-file": "version.txt",
+    "include-component-in-tag": false,
+    "force-tag-creation": true,
+    "bump-minor-pre-major": true,
+    "bump-patch-for-minor-pre-major": true
+}

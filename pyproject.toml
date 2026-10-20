@@ -1,0 +1,11 @@
+[tool.ruff]
+extend = ".build/toolkit/current/configs/ruff.toml"
+target-version = "py315"
+include = ["tests/**/*.py"]
+
+[tool.mypy]
+python_version = "3.15"
+files = ["tests"]
+check_untyped_defs = true
+warn_unused_ignores = true
+mypy_path = ".:.build/toolkit/current"

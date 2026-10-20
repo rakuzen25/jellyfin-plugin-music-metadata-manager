@@ -1,0 +1,19 @@
+name: Prepare release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  attestations: write
+jobs:
+  prepare:
+    uses: rakuzen25/jellyfin-plugin-toolkit/.github/workflows/prepare-release.yml@27d7278b59bbee90be02046a235939317e487e56 # v0.1.1
+    with:
+      app_client_id: ${{ vars.PLUGIN_APP_CLIENT_ID }}
+    secrets:
+      PLUGIN_APP_PRIVATE_KEY: ${{ secrets.PLUGIN_APP_PRIVATE_KEY }}

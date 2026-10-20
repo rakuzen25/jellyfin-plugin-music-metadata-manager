@@ -1,0 +1,17 @@
+name: Validate release candidate
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Execute all checks without evidence reuse
+        type: boolean
+        default: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validation:
+    uses: rakuzen25/jellyfin-plugin-toolkit/.github/workflows/validate.yml@27d7278b59bbee90be02046a235939317e487e56 # v0.1.1
+    with:
+      full: ${{ inputs.full || false }}

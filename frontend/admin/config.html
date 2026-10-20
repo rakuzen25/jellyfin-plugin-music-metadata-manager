@@ -1,0 +1,98 @@
+<div id="musicMetadataManagerPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox,emby-textarea">
+<style>/* PLUGIN_STYLES */</style>
+<div id="mmoRowMenu" class="mmo-row-menu" popover="auto" aria-label="Item actions"><div id="mmoRowMenuTitle" class="secondaryText"></div><div id="mmoRowMenuButtons"></div></div>
+<div data-role="content"><div class="content-primary mmo-content">
+<header class="mmo-header"><h1>Music Metadata Manager</h1><p class="secondaryText">Manage music metadata, artist identities, and reviewed corrections.</p></header>
+<div id="mmoMessage" class="mmo-notice-dock" hidden><button is="emby-button" type="button" id="mmoNoticeMore" class="button-flat" aria-expanded="false" hidden></button><div id="mmoNoticeList"></div></div>
+<div id="mmoAnnouncements" class="mmo-sr-only" role="status" aria-live="polite" aria-atomic="true"></div><div id="mmoAlertAnnouncements" class="mmo-sr-only" role="alert" aria-atomic="true"></div>
+<nav id="mmoNavigation" class="mmo-navigation" aria-label="Metadata manager">
+<button is="emby-button" data-view="library" aria-current="page">Library</button>
+<button is="emby-button" data-view="rules">Rules <span id="mmoChangesBadge"></span></button>
+<button is="emby-button" data-view="issues">Issues</button>
+<button is="emby-button" data-view="tools">Tools</button>
+</nav>
+<main id="mmoMain">
+<section data-destination="library" aria-labelledby="mmoLibraryTitle">
+<h2 id="mmoLibraryTitle">Find music</h2>
+<form id="mmoInventoryForm" class="mmo-search">
+<div class="inputContainer mmo-search-text"><label class="inputLabel" for="mmoInventorySearch">Search names, aliases, or paths</label><input is="emby-input" id="mmoInventorySearch" type="search" /></div>
+<div class="selectContainer"><label class="selectLabel" for="mmoInventoryLibrary">Library</label><select is="emby-select" id="mmoInventoryLibrary"><option value="">All music libraries</option></select></div>
+<div class="selectContainer"><label class="selectLabel" for="mmoInventoryKind">Type</label><select is="emby-select" id="mmoInventoryKind"><option value="">All music</option><option value="album">Albums</option><option value="track">Tracks</option><option value="artist">Artists</option><option value="MusicArtist">MusicArtist records</option><option value="Person">Person records</option></select></div>
+<div class="selectContainer"><label class="selectLabel" for="mmoInventoryView">Artist display</label><select is="emby-select" id="mmoInventoryView"><option value="grouped">Grouped identities</option><option value="native">Native records</option></select></div>
+<button is="emby-button" id="mmoInventoryFind" type="submit" class="raised button-submit">Find</button></form>
+<div id="mmoLibraryTable" class="mmo-list"></div>
+
+</section>
+<section data-destination="rules" hidden aria-labelledby="mmoChangesTitle">
+<h2 id="mmoChangesTitle">Rules</h2><p class="secondaryText">Corrections, artist identities, and saved drafts. Active versions stay in effect until reviewed changes are applied.</p>
+<div class="mmo-search"><div class="selectContainer"><label class="selectLabel" for="mmoChangeType">Type</label><select is="emby-select" id="mmoChangeType"><option value="">All types</option><option value="metadata">Item metadata</option><option value="correction">Folder and track corrections</option><option value="mapping">Credit mappings</option><option value="identity">Artist identities</option></select></div>
+<div class="selectContainer"><label class="selectLabel" for="mmoChangeState">Status</label><select is="emby-select" id="mmoChangeState"><option value="">All statuses</option><option value="active">Active</option><option value="draft">Saved drafts</option><option value="pending">Active · pending changes</option></select></div></div>
+<div class="mmo-actions"><button is="emby-button" id="mmoNew" class="raised">New correction or credit mapping</button><button is="emby-button" id="mmoNewIdentity" class="raised">New artist identity</button><button is="emby-button" id="mmoPreviewAll">Preview all saved drafts</button></div>
+<div class="mmo-actions mmo-bulk-selection"><button is="emby-button" id="mmoSelectPage">Select page</button><button is="emby-button" id="mmoSelectFiltered">Select all filtered results</button><button is="emby-button" id="mmoClearSelection">Clear selection</button><span id="mmoSelectedCount" role="status" aria-live="polite"></span></div>
+<section id="mmoBulkToolbar" class="mmo-bulk-toolbar" aria-label="Bulk actions" hidden><p class="secondaryText">Saved versions only. Unfinished local edits are not included.</p><div class="mmo-actions"><button is="emby-button" data-bulk-action="apply"></button><button is="emby-button" data-bulk-action="disable"></button><button is="emby-button" data-bulk-action="delete"></button><button is="emby-button" data-bulk-action="discard"></button></div></section>
+<section id="mmoLocalSection" hidden><h3>Unfinished edits</h3><p class="secondaryText">Kept during this visit. Save a draft to retain an edit after reloading.</p><div id="mmoLocalEdits"></div></section>
+<section id="mmoBatchSection" hidden><h3>Batch review</h3><p id="mmoManagerBatchCount"></p><div id="mmoBatchRows"></div><button is="emby-button" id="mmoManagerBatchPreview" class="raised">Preview batch edits</button></section>
+<div id="mmoRuleTable" class="mmo-list"></div>
+</section>
+<section data-destination="issues" hidden aria-labelledby="mmoIssuesTitle">
+<h2 id="mmoIssuesTitle">Issues</h2>
+<div class="selectContainer"><label class="selectLabel" for="mmoIssueGroup">Show</label><select is="emby-select" id="mmoIssueGroup"><option value="attention">Needs attention</option><option value="cleanup">Optional cleanup</option><option value="diagnostics">Diagnostics</option><option value="">All findings</option></select></div>
+<div class="mmo-actions"><button is="emby-button" id="mmoManagerIssueRefresh">Refresh issues</button></div>
+<details><summary>Advanced filters</summary><div class="mmo-search"><div class="selectContainer"><label class="selectLabel" for="mmoIssueType">Type</label><select is="emby-select" id="mmoIssueType"><option value="">All types</option><option value="credit">Unresolved credits</option><option value="binding">Broken bindings</option><option value="repair">Repair candidates</option><option value="orphan">Verified orphans</option><option value="blocked">Blocked records</option><option value="report">Application reports</option><option value="unmatched">Unmatched corrections</option><option value="recreated">Recreated records</option><option value="audit">Audit failures</option></select></div><div class="selectContainer"><label class="selectLabel" for="mmoIssueState">Status</label><select is="emby-select" id="mmoIssueState"><option value="">All statuses</option><option value="needs-review">Needs review</option><option value="eligible">Eligible for cleanup</option><option value="blocked">Blocked</option><option value="report">Application report</option><option value="live">Live condition</option></select></div></div></details>
+<div class="mmo-actions"><button is="emby-button" id="mmoIssueSelectPage">Select page</button><button is="emby-button" id="mmoIssueSelectAll">Select all filtered results</button><button is="emby-button" id="mmoIssueClear">Clear selection</button><span id="mmoIssueSelected" role="status"></span></div>
+<section id="mmoIssueToolbar" class="mmo-bulk-toolbar" hidden><div class="mmo-actions"><button is="emby-button" data-issue-action="cleanup"></button><button is="emby-button" data-issue-action="repair"></button><button is="emby-button" data-issue-action="acknowledge"></button></div></section>
+<section id="mmoIssueResults" class="mmo-issue-results" hidden aria-label="Repair results"></section><section id="mmoRepairQueueSummary" hidden></section><p id="mmoIssuesMessage" role="status"></p><div id="mmoIssuesTable" class="mmo-list"></div>
+<details><summary>Archived application reports</summary><div id="mmoArchivedReports"></div></details>
+</section>
+<section data-destination="tools" hidden aria-labelledby="mmoToolsTitle">
+<h2 id="mmoToolsTitle">Tools</h2><h3>Correction worker</h3><p id="mmoStatus" role="status"></p><div class="mmo-actions"><button is="emby-button" id="mmoApply" class="raised">Reapply active corrections</button><button is="emby-button" id="mmoReload">Refresh status</button></div>
+<h3>Application diagnostics</h3><div id="mmoIssueStatus"></div><h3>Import and export</h3><p class="secondaryText">Imports become drafts. Active metadata changes only after preview and application.</p><div class="mmo-actions"><button is="emby-button" id="mmoDownload" class="raised">Download export</button><button is="emby-button" id="mmoExport">Load export into editor</button></div>
+<div class="inputContainer"><label class="inputLabel" for="mmoJson">JSON document</label><textarea is="emby-textarea" id="mmoJson" rows="10"></textarea></div><button is="emby-button" id="mmoImport" class="raised">Import as drafts</button>
+</section>
+</main>
+<section id="mmoIssuePanel" hidden aria-labelledby="mmoIssuePanelTitle"><button is="emby-button" id="mmoIssuePanelBack">← Back to Issues</button><h2 id="mmoIssuePanelTitle" tabindex="-1"></h2><div id="mmoIssuePanelBody"></div></section>
+<section id="mmoWorkspace" hidden>
+<button is="emby-button" id="mmoWorkspaceBack">← Back</button>
+<section id="mmoIssueEditorContext" class="mmo-issue-context" hidden><p id="mmoIssueEditorSummary"></p><div class="mmo-actions"><button is="emby-button" id="mmoIssueEditorBack">Choose another repair</button><button is="emby-button" id="mmoIssueFullWorkspace">Open full workspace</button></div></section>
+<section id="mmoRepairControls" class="mmo-bulk-toolbar" hidden><p id="mmoRepairContext"></p><div class="mmo-actions"><button is="emby-button" id="mmoRepairStage">Stage and next</button><button is="emby-button" id="mmoRepairSkip">Skip</button><button is="emby-button" id="mmoRepairReturn">Return to Issues</button></div><p>Staged locally. Save drafts explicitly to retain work after reload.</p></section><div class="mmo-item-heading"><img id="mmoItemThumbnail" alt="" hidden /><div><h2 id="mmoWorkspaceTitle" tabindex="-1"></h2><p id="mmoWorkspaceState" class="secondaryText"></p><div id="mmoWorkspaceNative"></div></div></div>
+<nav id="mmoWorkspaceTabs" role="tablist" class="mmo-navigation" aria-label="Item sections"></nav>
+<section id="mmoManagerEditor" hidden>
+<h3 id="mmoManagerTitle" class="mmo-sr-only"></h3><p id="mmoManagerReadOnly" class="mmo-warning" hidden>This record is shared outside the selected music scope and is read-only.</p>
+<div data-item-panel="metadata" id="mmoPanel_metadata" role="tabpanel" aria-labelledby="mmoTab_metadata"><div id="mmoManagerFields" class="mmo-fields"></div>
+<details class="mmo-advanced"><summary>Scope, dependencies, and refresh behavior</summary><p id="mmoManagerDependencies"></p><div class="selectContainer"><label class="selectLabel" for="mmoManagerLibraries">Music libraries — must cover every music use</label><select is="emby-select" id="mmoManagerLibraries" multiple size="3"></select></div><div id="mmoDependencyDetails"></div></details>
+<details class="mmo-advanced"><summary>Application history</summary><div id="mmoManagerHistory"></div></details></div>
+<div data-item-panel="sources" id="mmoPanel_sources" role="tabpanel" aria-labelledby="mmoTab_sources" hidden><h3>Sources</h3><p class="secondaryText">Existing IDs are candidates. Confirm the intended source record before fetching. Selecting values changes only your local edit.</p>
+<div class="selectContainer"><label class="selectLabel" for="mmoManagerSourceProvider">Installed source</label><select is="emby-select" id="mmoManagerSourceProvider"></select></div>
+<div class="inputContainer"><label class="inputLabel" for="mmoManagerSourceKey">Provider ID key</label><input is="emby-input" id="mmoManagerSourceKey" /></div><div class="inputContainer"><label class="inputLabel" for="mmoManagerSourceId">Source record ID</label><input is="emby-input" id="mmoManagerSourceId" /></div>
+<div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="mmoManagerSourceConfirm" /><span>I confirm this is the intended source record for this item</span></label></div><button is="emby-button" id="mmoManagerCompare" class="raised">Fetch comparison</button><div id="mmoManagerSourceResult"></div></div>
+<div data-item-panel="artwork" id="mmoPanel_artwork" role="tabpanel" aria-labelledby="mmoTab_artwork" hidden><h3>Artwork</h3><div id="mmoManagerImages" class="mmo-image-grid"></div><details class="mmo-advanced"><summary>Upload replacement artwork</summary><div class="inputContainer"><p id="mmoArtworkFormats" class="secondaryText">JPEG, PNG, or WebP</p><div class="mmo-upload-picker"><button is="emby-button" id="mmoArtworkChoose" class="raised" aria-describedby="mmoArtworkFormats">Choose artwork</button><span id="mmoArtworkFilename" class="secondaryText" role="status">No artwork selected</span></div><input type="file" id="mmoManagerUpload" accept="image/jpeg,image/png,image/webp" hidden /></div><div class="selectContainer"><label class="selectLabel" for="mmoManagerUploadType">Artwork type</label><select is="emby-select" id="mmoManagerUploadType"><option>Primary</option><option>Backdrop</option><option>Banner</option><option>Logo</option><option>Thumb</option><option>Art</option><option>Disc</option><option>Box</option><option>BoxRear</option><option>Menu</option></select></div><button is="emby-button" id="mmoManagerUploadCache" class="raised">Cache for review</button></details></div>
+<div data-item-panel="tracks" id="mmoPanel_tracks" role="tabpanel" aria-labelledby="mmoTab_tracks" hidden><h3>Tracks</h3><p class="secondaryText">Existing album membership is preserved. Edit a track to correct its title, credits, or ordering.</p><div id="mmoAlbumTracks"></div><button is="emby-button" id="mmoAlbumDefaults" class="raised">Edit album-folder defaults</button></div>
+<div data-item-panel="identity" id="mmoPanel_identity" role="tabpanel" aria-labelledby="mmoTab_identity" hidden><h3>Identity and linked records</h3><div id="mmoArtistLinks"></div><button is="emby-button" id="mmoEditLinkedIdentity" class="raised">Edit aliases and bindings</button></div>
+<div class="mmo-actions mmo-editor-actions"><button is="emby-button" id="mmoManagerPreview" class="raised button-submit">Preview changes</button><button is="emby-button" id="mmoManagerSave">Save draft</button><button is="emby-button" id="mmoManagerCancel">Cancel edit</button><button is="emby-button" data-actions-open aria-label="More editing actions" aria-haspopup="true" aria-expanded="false">More actions ▾</button><div data-row-actions hidden><button is="emby-button" id="mmoManagerBatchAdd">Add to batch</button><button is="emby-button" id="mmoManagerStop">Preview stop managing</button><button is="emby-button" id="mmoManagerRestore">Preview restore original</button></div></div>
+</section>
+<form id="mmoIdentityForm" hidden class="mmo-editor-form">
+ <p id="mmoIdentityEditorState"></p><label>Preferred artist-page name<input is="emby-input" id="mmoIdentityName" required /></label>
+ <label>Recognized aliases, one per line<textarea id="mmoIdentityAliases" rows="4" style="width:100%"></textarea></label>
+ <label>Music libraries<select id="mmoIdentityLibraries" multiple size="3"></select></label>
+ <label>Artist record for artwork and biography<select id="mmoIdentityArtist"></select></label>
+ <label>Person record<select id="mmoIdentityPerson"></select></label>
+ <label>Additional linked artist records<select id="mmoIdentityArtists" multiple size="4"></select></label>
+ <label>Additional linked person records<select id="mmoIdentityPersons" multiple size="4"></select></label>
+ <label>Confirmed MusicBrainz artist ID<input is="emby-input" id="mmoIdentityMbid" /></label>
+ <button is="emby-button" type="button" id="mmoLocalSuggestions" class="raised">Suggest library names</button> <button is="emby-button" type="button" id="mmoBrainzSuggestions" class="raised">Suggest MusicBrainz aliases</button><div id="mmoIdentitySuggestions"></div>
+ <button is="emby-button" type="submit" class="raised">Preview identity changes</button> <button is="emby-button" type="button" id="mmoSaveIdentity" class="raised">Save identity draft</button> <button is="emby-button" type="button" id="mmoCancelIdentity" class="raised">Cancel</button>
+ </form>
+<p id="mmoEditorState" hidden></p>
+<form id="mmoForm" hidden class="mmo-editor-form">
+ <label>Label<input is="emby-input" id="mmoLabel" /></label>
+ <label>Rule type<select is="emby-select" id="mmoKind"><option value="track">Track</option><option value="album">Album folder</option><option value="alias">Credit mapping</option></select></label>
+ <label>Music libraries<select id="mmoLibraries" multiple size="4" style="display:block;width:100%"></select></label>
+ <div id="mmoPathArea"><label>Exact Jellyfin path<input is="emby-input" id="mmoPath" /></label><label>Find a library item<input is="emby-input" id="mmoSearch" placeholder="Search title or path" /></label><button is="emby-button" type="button" id="mmoFind" class="raised">Find items</button><select id="mmoItems" aria-label="Matching library items" size="5" style="display:block;width:100%"></select><button is="emby-button" type="button" id="mmoChoose" class="raised">Use selected item</button></div>
+ <div id="mmoAliasArea" hidden><label>Exact original artist credit<input is="emby-input" id="mmoCredit" /></label><label>Corrected artist names, one per line<textarea id="mmoNames" rows="4" style="display:block;width:100%"></textarea></label><label>Apply to<select is="emby-select" id="mmoRole"><option value="artists">Performers</option><option value="albumArtists">Album artists</option><option value="both">Both</option></select></label></div>
+ <div id="mmoFieldsArea"><h3>Corrected fields</h3><p>Leave blank to keep a field unmanaged. Artist names are one per line.</p><div id="mmoFields"></div><div id="mmoDefaultsArea"><h3>Defaults for tracks in this album folder</h3><p>The album title above also becomes the tracks' album name unless an album-name default is specified.</p><div id="mmoDefaults"></div></div></div>
+ <button is="emby-button" id="mmoPreviewEdit" class="raised button-submit" type="submit">Preview changes</button> <button is="emby-button" id="mmoSaveDraft" class="raised" type="button">Save draft</button> <button is="emby-button" id="mmoCancel" class="raised" type="button">Cancel</button></form>
+</section>
+<section id="mmoPreviewArea" hidden>
+<button is="emby-button" id="mmoReviewBack">← Back to edit</button><h2 id="mmoReviewTitle" tabindex="-1">Review changes</h2><p class="secondaryText">Review these changes before applying.</p><p id="mmoPreviewSummary"></p><section id="mmoBulkReview" hidden></section><section id="mmoIssueReview" hidden></section><div id="mmoPreview"></div><div class="mmo-actions mmo-editor-actions"><button is="emby-button" id="mmoActivate" class="raised button-submit">Apply changes</button><button is="emby-button" id="mmoReviewCancel">Cancel review</button></div>
+</section>
+</div></div><!-- PLUGIN_CONFIG_SCRIPT --></div>
