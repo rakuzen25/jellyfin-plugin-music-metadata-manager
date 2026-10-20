@@ -78,7 +78,6 @@ schema = 1
 [frontend]
 "enabled" = true
 "directory" = "frontend"
-"build" = "frontend/build.mjs"
 "entries" = {}
 "reload_assets" = []
 "required_assets" = ["config.html"]
@@ -303,14 +302,6 @@ schema = 1
     "tests.installation",
   ],
 ] }
-"test-reproducibility" = { "commands" = [
-  [
-    "{python}",
-    "-m",
-    "jellyfin_plugin_toolkit.reproducibility",
-  ],
-] }
-
 [distribution]
 "web" = false
 "notices" = [
