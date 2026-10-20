@@ -202,35 +202,10 @@ schema = 1
 "job_names" = {}
 
 [operations]
-"check-frontend" = { "commands" = [
-  [
-    "{pnpm}",
-    "exec",
-    "prettier",
-    "--check",
-    "frontend/**/*.{ts,mjs,json,css,html}",
-    "tests/browser/**/*.{cjs,json}",
-  ],
-  [
-    "{pnpm}",
-    "exec",
-    "eslint",
-    "frontend",
-    "tests/browser",
-    "--max-warnings",
-    "0",
-  ],
+"check-frontend" = { "after" = [
   [
     "node",
     "frontend/check-boundaries.mjs",
-  ],
-  [
-    "{pnpm}",
-    "--dir",
-    "frontend",
-    "exec",
-    "tsc",
-    "--noEmit",
   ],
   [
     "{pnpm}",
@@ -243,19 +218,7 @@ schema = 1
     "--noEmit",
   ],
 ] }
-"test-frontend" = { "commands" = [
-  [
-    "node",
-    "--experimental-strip-types",
-    "--test",
-  ],
-], "cwd" = "frontend" }
-"check-tooling" = { "commands" = [
-  [
-    "{python}",
-    "-m",
-    "jellyfin_plugin_toolkit.checks.tooling",
-  ],
+"check-tooling" = { "after" = [
   [
     "{python}",
     "-m",
@@ -266,16 +229,6 @@ schema = 1
     "-m",
     "jellyfin_plugin_toolkit.checks.architecture",
   ],
-  [
-    "{python}",
-    "-m",
-    "unittest",
-    "discover",
-    "-s",
-    "tests/tooling",
-  ],
-] }
-"test-tooling" = { "commands" = [
   [
     "{python}",
     "-m",

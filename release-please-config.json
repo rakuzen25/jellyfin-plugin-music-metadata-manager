@@ -8,22 +8,27 @@
                 {
                     "type": "json",
                     "path": "src/Host/packages.lock.json",
-                    "jsonpath": "$..dependencies[?(@property === 'MusicMetadataManager.Core' || @property === 'MusicMetadataManager.Infrastructure')]"
+                    "jsonpath": "$['dependencies'][*][?(@.type === 'Project')]['dependencies'][?(@property === \"Jellyfin.Plugin.MusicMetadataManager\" || @property === \"MusicMetadataManager.Application\" || @property === \"MusicMetadataManager.Core\" || @property === \"MusicMetadataManager.Infrastructure\")]"
                 },
                 {
                     "type": "json",
                     "path": "src/Infrastructure/packages.lock.json",
-                    "jsonpath": "$..dependencies[?(@property === 'MusicMetadataManager.Core' || @property === 'MusicMetadataManager.Infrastructure')]"
+                    "jsonpath": "$['dependencies'][*][?(@.type === 'Project')]['dependencies'][?(@property === \"Jellyfin.Plugin.MusicMetadataManager\" || @property === \"MusicMetadataManager.Application\" || @property === \"MusicMetadataManager.Core\" || @property === \"MusicMetadataManager.Infrastructure\")]"
                 },
                 {
                     "type": "json",
-                    "path": "tests/backend/Infrastructure/packages.lock.json",
-                    "jsonpath": "$..dependencies[?(@property === 'MusicMetadataManager.Core' || @property === 'MusicMetadataManager.Infrastructure')]"
+                    "path": "tests/backend/Application/packages.lock.json",
+                    "jsonpath": "$['dependencies'][*][?(@.type === 'Project')]['dependencies'][?(@property === \"Jellyfin.Plugin.MusicMetadataManager\" || @property === \"MusicMetadataManager.Application\" || @property === \"MusicMetadataManager.Core\" || @property === \"MusicMetadataManager.Infrastructure\")]"
                 },
                 {
                     "type": "json",
                     "path": "tests/backend/Host/packages.lock.json",
-                    "jsonpath": "$..dependencies[?(@property === 'MusicMetadataManager.Core' || @property === 'MusicMetadataManager.Infrastructure')]"
+                    "jsonpath": "$['dependencies'][*][?(@.type === 'Project')]['dependencies'][?(@property === \"Jellyfin.Plugin.MusicMetadataManager\" || @property === \"MusicMetadataManager.Application\" || @property === \"MusicMetadataManager.Core\" || @property === \"MusicMetadataManager.Infrastructure\")]"
+                },
+                {
+                    "type": "json",
+                    "path": "tests/backend/Infrastructure/packages.lock.json",
+                    "jsonpath": "$['dependencies'][*][?(@.type === 'Project')]['dependencies'][?(@property === \"Jellyfin.Plugin.MusicMetadataManager\" || @property === \"MusicMetadataManager.Application\" || @property === \"MusicMetadataManager.Core\" || @property === \"MusicMetadataManager.Infrastructure\")]"
                 }
             ]
         }

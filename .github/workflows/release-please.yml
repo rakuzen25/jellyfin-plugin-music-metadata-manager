@@ -12,7 +12,7 @@ permissions:
   attestations: write
 jobs:
   prepare:
-    uses: rakuzen25/jellyfin-plugin-toolkit/.github/workflows/prepare-release.yml@27d7278b59bbee90be02046a235939317e487e56 # v0.1.1
+    uses: rakuzen25/jellyfin-plugin-toolkit/.github/workflows/prepare-release.yml@f6c225ccc9f9e660f7cde484fc31588d79b02a5c # v0.2.0
     with:
       app_client_id: ${{ vars.PLUGIN_APP_CLIENT_ID }}
     secrets:
