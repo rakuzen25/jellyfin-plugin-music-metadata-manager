@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/compare/v0.2.0...v0.2.1) (2026-10-23)
+
+
+### Miscellaneous Chores
+
+* update gitignore ([936c72f](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/commit/936c72fb4683b0c08d66801c2597880168a466a3))
+
 ## [0.2.0](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/compare/v0.1.0...v0.2.0) (2026-10-23)
 
 
