@@ -1,8 +1,6 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": ["config:recommended", "github>rakuzen25/jellyfin-plugin-toolkit#v0.4.2"],
-    "automerge": false,
-    "minimumReleaseAge": "1 day",
+    "extends": ["github>rakuzen25/jellyfin-plugin-toolkit:tooling#v0.4.3", "github>rakuzen25/jellyfin-plugin-toolkit#v0.4.3"],
     "gitIgnoredAuthors": ["342669125+finchaser-3-0[bot]@users.noreply.github.com"],
     "packageRules": [
         {
