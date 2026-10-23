@@ -24,7 +24,7 @@ uv run jpt test
 uv run jpt validate
 ```
 
-See [development](docs/how-to/develop.md), [architecture](docs/explanation/architecture.md), [configuration and state](docs/reference/state.md), [administrator API](docs/reference/api.md), [release preparation](docs/how-to/release.md), and the [capability preservation matrix](docs/reference/capabilities.md), and the [full sweep report](docs/reference/full-sweep.md).
+See [development](docs/how-to/develop.md), [architecture](docs/explanation/architecture.md), [configuration and state](docs/reference/state.md), [administrator API](docs/reference/api.md), [release preparation](docs/how-to/release.md), and the [capability preservation matrix](docs/reference/capabilities.md).
 
 Original source is [Apache-2.0](LICENSE); [NOTICE](NOTICE) and [GPLv3 distribution material](GPL-3.0.txt) accompany compiled distributions.
 
