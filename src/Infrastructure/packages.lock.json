@@ -5,7 +5,7 @@
       "musicmetadatamanager.application": {
         "type": "Project",
         "dependencies": {
-          "MusicMetadataManager.Core": "[0.2.1, )"
+          "MusicMetadataManager.Core": "[0.2.2, )"
         }
       },
       "musicmetadatamanager.core": {
