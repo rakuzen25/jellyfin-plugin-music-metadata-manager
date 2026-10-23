@@ -21,7 +21,7 @@ class MusicSession(Session):
             f"type=bind,source={media},target=/fixture",
             "--entrypoint",
             "/usr/lib/jellyfin-ffmpeg/ffmpeg",
-            self.context.config["host"]["image"],
+            self.context.config.host.image,
             "-nostdin",
             "-loglevel",
             "error",

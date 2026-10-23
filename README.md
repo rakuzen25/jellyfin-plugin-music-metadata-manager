@@ -17,15 +17,15 @@ The initial 0.1.0 baseline uses schema 1 for JSON exports and includes correctio
 ## Development
 
 ```sh
-./plugin bootstrap
-./plugin dev
-./plugin check
-./plugin test
-./plugin validate --full
+uv run jpt bootstrap
+uv run jpt dev
+uv run jpt check
+uv run jpt test
+uv run jpt validate
 ```
 
 See [development](docs/how-to/develop.md), [architecture](docs/explanation/architecture.md), [configuration and state](docs/reference/state.md), [administrator API](docs/reference/api.md), [release preparation](docs/how-to/release.md), and the [capability preservation matrix](docs/reference/capabilities.md), and the [full sweep report](docs/reference/full-sweep.md).
 
 Original source is [Apache-2.0](LICENSE); [NOTICE](NOTICE) and [GPLv3 distribution material](GPL-3.0.txt) accompany compiled distributions.
 
-Use `pnpm check` (or `./plugin check`) to verify formatting and linting across the frontend, C# backend, Python tooling, configuration and docs. Use `pnpm format` to apply formatting, or add a target such as `frontend`, `backend`, `tooling` or `docs`. Run `./plugin bootstrap` first; checks never install dependencies. CI runs these same checks and requires the aggregate `validation / validate` result.
+Use `pnpm check` (or `uv run jpt check`) to verify formatting and linting across the frontend, C# backend, Python tooling, configuration and docs. Use `pnpm format` to apply formatting, or add a target such as `frontend`, `backend`, `tooling` or `docs`. uv synchronizes Python dependencies automatically; run `uv run jpt bootstrap` first to prepare Node, .NET and Jellyfin integrations. CI runs these same checks and requires the aggregate `validation / validate` result.

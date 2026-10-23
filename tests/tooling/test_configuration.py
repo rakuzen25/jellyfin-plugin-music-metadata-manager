@@ -11,19 +11,15 @@ from jellyfin_plugin_toolkit.context import Context
 class ConsumerTests(unittest.TestCase):
     def test_baseline_identity_paths_and_architecture(self):
         context = Context.load()
+        self.assertEqual("86400cc2-d51e-4695-82c0-5d4f61d3a1f7", context.identity.guid)
         self.assertEqual(
-            "86400cc2-d51e-4695-82c0-5d4f61d3a1f7", context.identity["guid"]
+            "Jellyfin.Plugin.MusicMetadataManager", context.identity.assembly
         )
-        self.assertEqual(
-            "Jellyfin.Plugin.MusicMetadataManager", context.identity["assembly"]
-        )
-        self.assertEqual(
-            "musicmetadatamanager", context.config["sandbox"]["settings_page"]
-        )
-        self.assertFalse(context.config["distribution"]["web"])
+        self.assertEqual("musicmetadatamanager", context.config.sandbox.settings_page)
+        self.assertFalse(context.config.distribution.web)
         self.assertEqual(
             {"Core", "Application", "Infrastructure", "Host"},
-            set(context.config["backend"]["projects"]),
+            set(context.config.backend.projects),
         )
         check_projects(context.root)
 

@@ -26,7 +26,7 @@ async function inspect(root) {
             if (!item.name.endsWith(".test.ts") && specifier.endsWith(".test.ts")) throw Error("Production module imports a test: " + specifier);
             const target = path.resolve(path.dirname(filename), specifier);
             if (!statement.importClause?.isTypeOnly && specifier.startsWith(".")) edges.push(target);
-            const toolkit = path.resolve(directory, "../.build/toolkit/current/ui");
+            const toolkit = path.resolve(directory, "../.build/jpt/ui");
             if (!specifier.startsWith(".") || !(target.startsWith(directory) || target.startsWith(toolkit + path.sep)))
                 throw Error("Frontend dependency escapes its declared boundary: " + specifier);
         }

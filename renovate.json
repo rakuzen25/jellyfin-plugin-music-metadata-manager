@@ -1,6 +1,28 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": ["config:recommended", "github>rakuzen25/jellyfin-plugin-toolkit#v0.2.0"],
+    "extends": ["config:recommended", "github>rakuzen25/jellyfin-plugin-toolkit#v0.4.1"],
     "automerge": false,
-    "minimumReleaseAge": "1 day"
+    "minimumReleaseAge": "1 day",
+    "gitIgnoredAuthors": ["342669125+finchaser-3-0[bot]@users.noreply.github.com"],
+    "packageRules": [
+        {
+            "description": ["Toolkit references are derived by trusted synchronization, never updated independently."],
+            "matchPackageNames": ["rakuzen25/jellyfin-plugin-toolkit", "rakuzen25/jellyfin-plugin-toolkit/**"],
+            "groupName": "Jellyfin plugin toolkit",
+            "groupSlug": "jellyfin-plugin-toolkit",
+            "automerge": false,
+            "separateMajorMinor": false,
+            "enabled": false
+        },
+        {
+            "description": ["Only the canonical toolkit wheel URL may select a new published release."],
+            "matchManagers": ["custom.regex"],
+            "matchDatasources": ["github-releases"],
+            "matchPackageNames": ["rakuzen25/jellyfin-plugin-toolkit"],
+            "matchFileNames": ["pyproject.toml"],
+            "enabled": true,
+            "minimumReleaseAge": null,
+            "minimumReleaseAgeBuffer": null
+        }
+    ]
 }

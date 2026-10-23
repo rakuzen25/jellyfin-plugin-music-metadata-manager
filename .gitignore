@@ -13,4 +13,4 @@ tests/browser/results*/
 /.brooks-lint-history.json
 
 # Source distributions embed this archive; development uses the locked release.
-/build-support/toolkit.tar.gz
+/build-support/
