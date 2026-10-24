@@ -7,11 +7,30 @@ import urllib.error
 import urllib.request
 import uuid
 import zlib
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any, TypedDict
 
 from jellyfin_plugin_toolkit.installation import Session
 
 from .media import Endpoint, wait_for
+
+
+class MetadataPolicy(TypedDict):
+    id: str
+    itemId: str
+    label: str
+    libraries: list[str]
+    fields: dict[str, dict[str, str]]
+    images: dict[str, dict[str, Any]]
+
+
+class IdentityPolicy(TypedDict):
+    id: str
+    preferredName: str
+    aliases: list[str]
+    libraries: list[str]
+    artistId: str
+    personId: str
 
 
 def expect_rejected(
@@ -78,7 +97,7 @@ def characterize_manager(
 
     before = detail()
     original = before["stored"]["overview"]
-    policy = {
+    policy: MetadataPolicy = {
         "id": uuid.uuid4().hex,
         "itemId": track["id"],
         "label": "Portable metadata ownership",
@@ -156,7 +175,7 @@ def characterize_manager(
         record for record in records["persons"] if record["name"] == "Fixture artist"
     ]
     assert len(artists) == len(persons) == 1, records
-    identity = {
+    identity: IdentityPolicy = {
         "id": uuid.uuid4().hex,
         "preferredName": "Fixture preferred artist",
         "aliases": ["Fixture artist"],

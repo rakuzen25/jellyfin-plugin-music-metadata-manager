@@ -1,8 +1,9 @@
 """Synthetic tagged audio and native metadata correction/restoration contracts."""
 
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
 from jellyfin_plugin_toolkit.installation import Session
 
@@ -56,19 +57,20 @@ class MusicSession(Session):
         (media / "track.wav").unlink()
 
 
-def wait_for(
+def wait_for[T](
     description: str,
     read: Callable[[], T],
     predicate: Callable[[T], bool],
     timeout: int = 90,
 ) -> T:
     deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
+    while True:
         value = read()
         if predicate(value):
             return value
+        if time.monotonic() >= deadline:
+            raise AssertionError(description + " did not settle: " + repr(value))
         time.sleep(0.25)
-    raise AssertionError(description + " did not settle: " + repr(value))
 
 
 def characterize_media(
