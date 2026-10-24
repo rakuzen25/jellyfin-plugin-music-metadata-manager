@@ -1,12 +1,27 @@
 """Synthetic tagged audio and native metadata correction/restoration contracts."""
 
 import time
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any, Protocol, TypeVar
 
 from jellyfin_plugin_toolkit.installation import Session
 
+T = TypeVar("T")
+
+
+class Endpoint(Protocol):
+    def __call__(
+        self,
+        session: Session,
+        path: str,
+        method: str = "GET",
+        body: dict[str, Any] | None = None,
+    ) -> Any: ...
+
 
 class MusicSession(Session):
-    def populate_media(self, media):
+    def populate_media(self, media: Path) -> None:
         super().populate_media(media)
         import os
 
@@ -42,17 +57,25 @@ class MusicSession(Session):
         (media / "track.wav").unlink()
 
 
-def wait_for(description, read, predicate, timeout=90):
+def wait_for[T](
+    description: str,
+    read: Callable[[], T],
+    predicate: Callable[[T], bool],
+    timeout: int = 90,
+) -> T:
     deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
+    while True:
         value = read()
         if predicate(value):
             return value
+        if time.monotonic() >= deadline:
+            raise AssertionError(description + " did not settle: " + repr(value))
         time.sleep(0.25)
-    raise AssertionError(description + " did not settle: " + repr(value))
 
 
-def characterize_media(session, endpoint):
+def characterize_media(
+    session: Session, endpoint: Endpoint
+) -> tuple[dict[str, Any], dict[str, Any], Callable[[], dict[str, Any]]]:
     session.call("/Library/Refresh", "POST")
     rows = wait_for(
         "synthetic music scan",
@@ -72,9 +95,10 @@ def characterize_media(session, endpoint):
     assert track["values"]["title"] == "Original synthetic title", track
     baseline = track["values"].copy()
 
-    def current():
-        return next(
+    def current() -> dict[str, Any]:
+        values: dict[str, Any] = next(
             row for row in endpoint(session, "items") if row["id"] == track["id"]
         )["values"]
+        return values
 
     return track, baseline, current
