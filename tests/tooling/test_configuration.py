@@ -9,7 +9,7 @@ from jellyfin_plugin_toolkit.context import Context
 
 
 class ConsumerTests(unittest.TestCase):
-    def test_baseline_identity_paths_and_architecture(self):
+    def test_baseline_identity_paths_and_architecture(self) -> None:
         context = Context.load()
         self.assertEqual("86400cc2-d51e-4695-82c0-5d4f61d3a1f7", context.identity.guid)
         self.assertEqual(
@@ -23,7 +23,7 @@ class ConsumerTests(unittest.TestCase):
         )
         check_projects(context.root)
 
-    def test_public_source_inventory_excludes_operational_material(self):
+    def test_public_source_inventory_excludes_operational_material(self) -> None:
         context = Context.load()
         files = source_files(context.root)
         for path in files:
@@ -32,7 +32,7 @@ class ConsumerTests(unittest.TestCase):
             self.assertNotIn("DEPLOYMENT.md", path.parts)
         self.assertIn(Path("frontend/admin/config.ts"), files)
 
-    def test_maintained_inputs_are_classified(self):
+    def test_maintained_inputs_are_classified(self) -> None:
         from jellyfin_plugin_toolkit.ci.policy import classification
 
         context = Context.load()
@@ -40,7 +40,7 @@ class ConsumerTests(unittest.TestCase):
             with self.subTest(path=path):
                 classification(context, path)
 
-    def test_git_inventory_does_not_track_execution_reports(self):
+    def test_git_inventory_does_not_track_execution_reports(self) -> None:
         import subprocess
 
         root = Context.load().root
