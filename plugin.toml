@@ -41,7 +41,7 @@ Host = "src/Host/Plugin.csproj"
 
 [validation]
 groups = ["metadata", "frontend", "backend", "tooling", "workflow", "artifacts"]
-check_targets = ["frontend", "backend", "tooling", "docs"]
+check_targets = ["frontend", "backend", "tooling", "automation", "docs"]
 unit_groups = ["frontend", "backend", "tooling"]
 acceptance_groups = ["workflow", "installation", "reproducibility"]
 
@@ -238,14 +238,6 @@ after = [
     "jellyfin_plugin_toolkit",
     "internal",
     "architecture",
-  ],
-  [
-    "{python}",
-    "-m",
-    "unittest",
-    "discover",
-    "-s",
-    "tests/tooling",
   ],
 ]
 
