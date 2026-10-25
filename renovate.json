@@ -1,6 +1,6 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": ["github>rakuzen25/jellyfin-plugin-toolkit:tooling#v0.4.3", "github>rakuzen25/jellyfin-plugin-toolkit#v0.4.3"],
+    "extends": ["github>rakuzen25/jellyfin-plugin-toolkit:tooling#v0.5.1", "github>rakuzen25/jellyfin-plugin-toolkit#v0.5.1"],
     "gitIgnoredAuthors": ["342669125+finchaser-3-0[bot]@users.noreply.github.com"],
     "packageRules": [
         { "description": "Native compiler updates stay on stable TypeScript 7.", "matchPackageNames": ["typescript"], "allowedVersions": ">=7 <8" },
