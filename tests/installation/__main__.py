@@ -4,20 +4,27 @@ import copy
 import urllib.error
 import urllib.request
 import uuid
+from typing import Any
 
 from jellyfin_plugin_toolkit.acceptance import inventory
 from jellyfin_plugin_toolkit.context import Context
+from jellyfin_plugin_toolkit.installation import Session as BaseSession
 
 from .manager import characterize_manager
 from .media import MusicSession as Session
 from .media import characterize_media, wait_for
 
 
-def endpoint(session, path, method="GET", body=None):
+def endpoint(
+    session: BaseSession,
+    path: str,
+    method: str = "GET",
+    body: dict[str, Any] | None = None,
+) -> Any:
     return session.call("/MusicMetadataManager/" + path, method, body)
 
 
-def characterize(session):
+def characterize(session: BaseSession) -> dict[str, Any]:
     initial = endpoint(session, "rules")
     assert (
         initial["schemaVersion"] == 1
@@ -132,7 +139,7 @@ def characterize(session):
     characterize_manager(session, endpoint, track)
     document = endpoint(session, "rules")
     endpoint(session, "import", "POST", document)
-    imported = endpoint(session, "rules")
+    imported: dict[str, Any] = endpoint(session, "rules")
     assert imported["active"] == document["active"] and len(imported["drafts"]) == 2
     session.restart()
     session.assert_loaded()
@@ -142,7 +149,7 @@ def characterize(session):
     return imported
 
 
-def main():
+def main() -> None:
     context = Context.load()
     inventory(context)
     with Session(context) as session:

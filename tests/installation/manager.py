@@ -7,11 +7,35 @@ import urllib.error
 import urllib.request
 import uuid
 import zlib
+from collections.abc import Callable
+from typing import Any, TypedDict
 
-from .media import wait_for
+from jellyfin_plugin_toolkit.installation import Session
+
+from .media import Endpoint, wait_for
 
 
-def expect_rejected(action, statuses=(400, 409)):
+class MetadataPolicy(TypedDict):
+    id: str
+    itemId: str
+    label: str
+    libraries: list[str]
+    fields: dict[str, dict[str, str]]
+    images: dict[str, dict[str, Any]]
+
+
+class IdentityPolicy(TypedDict):
+    id: str
+    preferredName: str
+    aliases: list[str]
+    libraries: list[str]
+    artistId: str
+    personId: str
+
+
+def expect_rejected(
+    action: Callable[[], object], statuses: tuple[int, ...] = (400, 409)
+) -> None:
     try:
         action()
     except urllib.error.HTTPError as error:
@@ -20,8 +44,8 @@ def expect_rejected(action, statuses=(400, 409)):
         raise AssertionError("Unsafe operation was admitted")
 
 
-def upload_image(session):
-    def chunk(kind, data):
+def upload_image(session: Session) -> dict[str, Any]:
+    def chunk(kind: bytes, data: bytes) -> bytes:
         return (
             struct.pack(">I", len(data))
             + kind
@@ -55,22 +79,25 @@ def upload_image(session):
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=30) as response:
-        decision = json.load(response)
+        decision: dict[str, Any] = json.load(response)
     assert decision["hash"].lower() == hashlib.sha256(image).hexdigest()
     return decision
 
 
-def characterize_manager(session, endpoint, track):
-    def apply(change):
+def characterize_manager(
+    session: Session, endpoint: Endpoint, track: dict[str, Any]
+) -> None:
+    def apply(change: dict[str, Any]) -> Any:
         review = endpoint(session, "preview", "POST", change)
         return endpoint(session, "activate", "POST", {"token": review["token"]})
 
-    def detail():
-        return endpoint(session, "manager/items/" + track["id"])
+    def detail() -> dict[str, Any]:
+        result: dict[str, Any] = endpoint(session, "manager/items/" + track["id"])
+        return result
 
     before = detail()
     original = before["stored"]["overview"]
-    policy = {
+    policy: MetadataPolicy = {
         "id": uuid.uuid4().hex,
         "itemId": track["id"],
         "label": "Portable metadata ownership",
@@ -148,7 +175,7 @@ def characterize_manager(session, endpoint, track):
         record for record in records["persons"] if record["name"] == "Fixture artist"
     ]
     assert len(artists) == len(persons) == 1, records
-    identity = {
+    identity: IdentityPolicy = {
         "id": uuid.uuid4().hex,
         "preferredName": "Fixture preferred artist",
         "aliases": ["Fixture artist"],
@@ -159,10 +186,10 @@ def characterize_manager(session, endpoint, track):
     apply({"identityEdits": [identity]})
     user = session.user.get("Id", session.user.get("id"))
 
-    def favorite(record):
+    def favorite(record: str) -> bool:
         item = session.call("/Users/" + user + "/Items/" + record)
         data = item.get("UserData", item.get("userData"))
-        return data.get("IsFavorite", data.get("isFavorite"))
+        return bool(data.get("IsFavorite", data.get("isFavorite")))
 
     session.call("/Users/" + user + "/FavoriteItems/" + identity["artistId"], "POST")
     assert favorite(identity["artistId"]) and favorite(identity["personId"])
