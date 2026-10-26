@@ -4,6 +4,15 @@ on:
     types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
     inputs:
+      ref:
+        description: Immutable measurement source revision
+        type: string
+        required: true
+      base:
+        description: Immutable comparison source revision
+        type: string
+        default: ""
+    inputs:
       full:
         description: Execute all checks without evidence reuse
         type: boolean
@@ -17,4 +26,6 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base != null
     uses: rakuzen25/jellyfin-plugin-toolkit/.github/workflows/validate.yml@d199cb44534bee72936ae2a007b0c0eda82131d1 # v0.5.3
     with:
+      ref: ${{ inputs.ref }}
+      base: ${{ inputs.base }}
       full: ${{ inputs.full || false }}
