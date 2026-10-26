@@ -17,4 +17,6 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base != null
     uses: rakuzen25/jellyfin-plugin-toolkit/.github/workflows/validate.yml@d199cb44534bee72936ae2a007b0c0eda82131d1 # v0.5.3
     with:
+      ref: ${{ github.sha }}
+      base: ${{ format('{0}^', github.sha) }}
       full: ${{ inputs.full || false }}
