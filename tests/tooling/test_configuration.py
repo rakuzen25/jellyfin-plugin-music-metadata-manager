@@ -1,4 +1,4 @@
-"""Consumer identity, inventory and architecture contracts."""
+"""Repository tooling checks. Consumer identity, inventory and architecture contracts."""
 
 import unittest
 from pathlib import Path
