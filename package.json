@@ -34,5 +34,6 @@
         "remark-gfm": "4.0.1",
         "unist-util-visit": "5.2.0",
         "hast-util-from-html": "2.0.3"
-    }
+    },
+    "description": "Music Metadata Manager development tooling"
 }
