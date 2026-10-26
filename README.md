@@ -1,4 +1,4 @@
-# Music Metadata Manager
+# Music Metadata Manager.
 
 Review music metadata corrections, artist identities, artwork decisions and library issues in Jellyfin. Original media remains unchanged. The supported build is the pinned Jellyfin 12.2.0.0 Linux x64 image with .NET 10.
 
