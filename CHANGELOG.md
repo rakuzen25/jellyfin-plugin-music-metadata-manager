@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/compare/v0.2.3...v0.2.4) (2026-10-27)
+
+
+### Bug Fixes
+
+* adopt public release receipt contract ([#26](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/issues/26)) ([d821adc](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/commit/d821adc6027a2998a159a84f07dc6aed838fc0bc))
+
 ## [0.2.3](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/compare/v0.2.2...v0.2.3) (2026-10-26)
 
 
