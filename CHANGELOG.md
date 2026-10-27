@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/compare/v0.2.2...v0.2.3) (2026-10-26)
+
+
+### Bug Fixes
+
+* **tooling:** adopt shared Python setup and dependency automation ([#21](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/issues/21)) ([f44b172](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/commit/f44b1726e31899ddae817126917351d004e93937))
+
 ## [0.2.2](https://github.com/rakuzen25/jellyfin-plugin-music-metadata-manager/compare/v0.2.1...v0.2.2) (2026-10-23)
 
 
