@@ -4,6 +4,6 @@ All repository writes require the existing GitHub App; there is no workflow-toke
 
 Run `uv run jpt validate` with the locked toolkit. Build and inspect the plugin ZIP, matching source ZIP, manifest, checksums and provenance under `dist`. This plugin embeds its administrator page and does not produce a standalone web ZIP.
 
-Release preparation creates reviewed version changes and unpublished drafts. The shared release workflow performs fresh installation, reproducibility and dependency-advisory checks and attaches authenticated evidence for the exact candidate bytes. Toolkit wheel, workflow revisions and Renovate preset must agree.
+Release preparation creates reviewed version changes and unpublished drafts. The shared release workflow performs fresh installation, reproducibility and dependency-advisory checks and attaches authenticated evidence for the exact candidate bytes. Public receipts use schema 7 independently of internal CI evidence versions; the catalog applies this public contract to every release. Toolkit wheel, workflow revisions and Renovate preset must agree.
 
 Review the draft's evidence and catalog policy before manual publication. Production installation is separate. Back up server configuration and plugin journal consistently, stop the server, install the declared plugin payload, then verify behavior before resuming normal operation. See [configuration and state](../reference/state.md). The initial release starts from empty plugin state; no upgrade or prior-format compatibility is provided.
